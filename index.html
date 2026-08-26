@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ScriptGuard AI | مراقب السكربتات الذكي</title>
+  <title>Sentinel-Companion | رفيق Sentinel الذكي</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -72,7 +72,8 @@
     .robot-stage{height:20rem;display:grid;place-items:center;perspective:900px;position:relative;cursor:crosshair}.robot-stage::before{content:'';position:absolute;width:15rem;height:3rem;bottom:1.2rem;border-radius:50%;background:rgba(34,211,238,.22);filter:blur(18px);transform:rotateX(70deg)}.robot-model{position:relative;width:10.5rem;height:15.5rem;transform-style:preserve-3d;animation:robot-float 5s ease-in-out infinite;transition:transform .35s cubic-bezier(.23,1,.32,1)}.robot-model::before{content:'';position:absolute;inset:1.5rem -2rem 1rem;background:linear-gradient(90deg,transparent,rgba(34,211,238,.18),transparent);filter:blur(12px);transform:translateZ(-2rem)}.robot-head{position:absolute;z-index:4;top:0;left:2.35rem;width:5.8rem;height:4.5rem;border:2px solid rgba(165,243,252,.65);border-radius:1.5rem 1.5rem 1.1rem 1.1rem;background:linear-gradient(145deg,#dbeafe 0%,#64748b 24%,#172033 66%,#07111f);box-shadow:inset 0 2px 8px rgba(255,255,255,.75),0 0 25px rgba(34,211,238,.22);transform:translateZ(1.6rem);overflow:hidden}.robot-head::before{content:'';position:absolute;left:.9rem;right:.9rem;top:1.65rem;height:.65rem;border-radius:.8rem;background:linear-gradient(90deg,#22d3ee 0 22%,transparent 22% 36%,#22d3ee 36% 64%,transparent 64% 78%,#22d3ee 78%);box-shadow:0 0 14px #22d3ee}.robot-head::after{content:'SG';position:absolute;right:.55rem;top:.35rem;font:700 .5rem monospace;color:#cffafe;opacity:.85}.robot-neck{position:absolute;top:4rem;left:4.1rem;width:2.5rem;height:1.2rem;background:#1e293b;border:1px solid #67e8f9;border-radius:.35rem;transform:translateZ(1rem)}.robot-torso{position:absolute;z-index:3;top:4.65rem;left:1.55rem;width:7.5rem;height:6.8rem;border:2px solid rgba(148,163,184,.55);border-radius:1.8rem 1.8rem 1rem 1rem;background:linear-gradient(145deg,#cbd5e1,#475569 17%,#172033 55%,#0b1220);box-shadow:inset 0 3px 12px rgba(255,255,255,.45),0 0 28px rgba(14,165,233,.2);transform:translateZ(.8rem)}.robot-torso::before{content:'';position:absolute;left:2.2rem;top:1.6rem;width:3rem;height:3rem;border-radius:50%;border:1px solid #67e8f9;background:radial-gradient(circle,#e0f2fe 0 8%,#22d3ee 10% 18%,#0f172a 20% 65%,#22d3ee 67% 71%,transparent 73%);box-shadow:0 0 22px #22d3ee}.robot-torso::after{content:'';position:absolute;left:1.1rem;right:1.1rem;bottom:.75rem;height:.35rem;border-radius:1rem;background:linear-gradient(90deg,#22d3ee 30%,#a78bfa 30% 65%,#22d3ee 65%);box-shadow:0 0 10px rgba(34,211,238,.7)}.robot-arm{position:absolute;z-index:2;top:5.1rem;width:1.7rem;height:6.8rem;border:1px solid #94a3b8;border-radius:1rem;background:linear-gradient(90deg,#0f172a,#64748b,#111827);box-shadow:0 0 12px rgba(34,211,238,.18)}.robot-arm.left{left:.15rem;transform:rotate(7deg) translateZ(.4rem)}.robot-arm.right{right:.15rem;transform:rotate(-7deg) translateZ(.4rem)}.robot-hand{position:absolute;bottom:-1.1rem;left:.1rem;width:1.5rem;height:1.5rem;border:1px solid #67e8f9;border-radius:.5rem;background:#172033}.robot-hips{position:absolute;z-index:2;top:10.7rem;left:2.4rem;width:5.7rem;height:1.4rem;border-radius:.6rem;background:#334155;border:1px solid #94a3b8;transform:translateZ(.5rem)}.robot-leg{position:absolute;top:11.5rem;width:2rem;height:4rem;border:1px solid #94a3b8;border-radius:.7rem;background:linear-gradient(90deg,#0b1220,#64748b,#111827);box-shadow:0 0 12px rgba(34,211,238,.16)}.robot-leg.left{left:2.5rem}.robot-leg.right{right:2.5rem}.robot-leg::after{content:'';position:absolute;bottom:-.55rem;left:-.35rem;width:2.7rem;height:.75rem;border-radius:.5rem;background:#0b1220;border:1px solid #67e8f9}
     @keyframes robot-float{0%,100%{transform:translateY(0) rotateY(-8deg)}50%{transform:translateY(-10px) rotateY(8deg)}}
     .robot-scan::after{content:'';position:absolute;left:-1rem;right:-1rem;top:0;height:2px;background:#67e8f9;box-shadow:0 0 18px 6px rgba(34,211,238,.8);animation:robot-scan 1s ease-out forwards;pointer-events:none}@keyframes robot-scan{from{top:0;opacity:1}to{top:100%;opacity:0}}
-    @media(max-width:760px){.robot-hero{grid-template-columns:1fr;gap:.75rem;padding:1rem;margin-bottom:1.25rem}.robot-copy{text-align:center}.robot-copy p{margin:auto}.robot-status{justify-content:center}.robot-stage{height:17rem;order:-1}.robot-model{transform:scale(.82)}.robot-stage::before{bottom:.5rem}}
+    .robot-realistic{width:min(100%,18rem);height:20rem;border-radius:2rem;overflow:hidden;position:relative;transform:translateZ(0);box-shadow:0 0 45px rgba(34,211,238,.25),inset 0 0 30px rgba(255,255,255,.12);background:#0b1420}.robot-fallback{position:absolute;inset:0;z-index:1;display:grid;place-items:center;align-content:center;gap:.8rem;background:radial-gradient(circle at 50% 35%,rgba(34,211,238,.25),transparent 35%),linear-gradient(145deg,#172033,#07111f);color:#67e8f9;font-size:1.8rem}.robot-fallback span{font:700 1rem monospace;letter-spacing:.18em}.robot-realistic img{width:100%;height:100%;display:block;object-fit:cover;object-position:center 49%;filter:saturate(1.06) contrast(1.04) brightness(.92);transition:transform .35s ease,filter .35s ease}.robot-realistic:hover img,.robot-realistic:focus-within img{transform:scale(1.035);filter:saturate(1.15) contrast(1.08) brightness(1)}.robot-realistic::before{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(115deg,rgba(103,232,249,.2),transparent 34%,transparent 66%,rgba(167,139,250,.2));pointer-events:none}.robot-live-ring{position:absolute;z-index:2;left:50%;bottom:1.2rem;width:5.5rem;height:.35rem;transform:translateX(-50%);border-radius:99px;background:#67e8f9;box-shadow:0 0 18px 5px rgba(34,211,238,.7);opacity:.9}.robot-realistic .robot-scan{position:absolute;z-index:3;inset:0;pointer-events:none}.robot-realistic .robot-scan::after{left:0;right:0;top:10%;opacity:.7}.robot-realistic + *{pointer-events:none}
+    @media(max-width:760px){.robot-hero{grid-template-columns:1fr;gap:.75rem;padding:1rem;margin-bottom:1.25rem}.robot-copy{text-align:center}.robot-copy p{margin:auto}.robot-status{justify-content:center}.robot-stage{height:17rem;order:-1}.robot-model{transform:scale(.82)}.robot-realistic{width:min(100%,15rem);height:16rem}.robot-stage::before{bottom:.5rem}}
     @media(prefers-reduced-motion:reduce){.robot-model{animation:none}.robot-model{transition:none}}
     .tb.active{background:linear-gradient(135deg,rgba(34,211,238,0.2),rgba(14,165,233,0.2));border-color:#22d3ee;color:#22d3ee}
     .ld span{animation:bounce 1.4s ease-in-out infinite both}
@@ -94,8 +95,8 @@
             <i class="fas fa-shield-halved text-white text-lg"></i>
           </div>
           <div>
-            <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">ScriptGuard AI</h1>
-            <p class="text-[10px] text-gray-400 -mt-1">مراقب السكربتات الذكي</p>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Sentinel-Companion</h1>
+            <p class="text-[10px] text-gray-400 -mt-1">رفيق Sentinel الذكي</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -192,10 +193,10 @@
           <div class="robot-status"><i class="fas fa-circle-nodes"></i><span id="robot-status-text">النواة جاهزة — بانتظار أمرك</span><span class="px-2 py-1 rounded-full bg-cyan-400/10 text-cyan-300 border border-cyan-400/20">AI</span></div>
         </div>
         <div id="robot-stage" class="robot-stage" tabindex="0" role="button" aria-label="تفاعل مع الروبوت ثلاثي الأبعاد">
-          <div id="robot-model" class="robot-model" role="img" aria-label="روبوت مستقبلي معدني">
-            <div class="robot-head"></div><div class="robot-neck"></div><div class="robot-torso"></div>
-            <div class="robot-arm left"><span class="robot-hand"></span></div><div class="robot-arm right"><span class="robot-hand"></span></div>
-            <div class="robot-hips"></div><div class="robot-leg left"></div><div class="robot-leg right"></div>
+          <div id="robot-model" class="robot-model robot-realistic" role="img" aria-label="روبوت Sentinel واقعي مستقبلي">
+            <img src="/manus-storage/sentinel-realistic-robot_b66f877f_e4782e2b.png" alt="وجه روبوت Sentinel واقعي بعيون زرقاء مضيئة داخل مختبر مستقبلي" width="720" height="900" loading="eager" fetchpriority="high" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+            <div class="robot-fallback" hidden aria-hidden="true"><i class="fas fa-robot"></i><span>Sentinel</span></div>
+            <span class="robot-scan" aria-hidden="true"></span><span class="robot-live-ring" aria-hidden="true"></span>
           </div>
         </div>
       </section>
@@ -426,7 +427,7 @@
     <footer class="glass border-t border-white/10 mt-8">
       <div class="max-w-6xl mx-auto px-4 py-4 text-center">
         <p class="text-xs text-gray-500">
-          &copy; 2026 ScriptGuard AI. Developed by <strong class="text-cyan-400">Abdelati Zarzori</strong>. All rights reserved.
+          &copy; 2026 Sentinel-Companion. Developed by <strong class="text-cyan-400">Abdelati Zarzori</strong>. All rights reserved.
         </p>
       </div>
     </footer>
