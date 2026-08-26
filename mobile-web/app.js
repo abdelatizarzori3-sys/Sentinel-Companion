@@ -1,5 +1,5 @@
 const CONFIG = {
-  apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || '').replace(/\/$/, ''),
+  apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
 const Companion = {
@@ -23,7 +23,7 @@ function showToast(message, kind = 'info') {
 function updateServiceStatus() {
   const status = $('service-status');
   if (!status) return;
-  status.textContent = CONFIG.apiBase ? 'الخادم مضبوط؛ المحادثة ستتصل به عند الإرسال.' : 'لم يُضبط خادم Sentinel بعد؛ لا توجد ردود تجريبية.';
+  status.textContent = CONFIG.apiBase ? 'الخادم العام مضبوط؛ المحادثة تستخدم خدمة Sentinel الفعلية عند الإرسال.' : 'لم يُضبط خادم Sentinel بعد؛ لا توجد ردود تجريبية.';
   status.className = CONFIG.apiBase ? 'mt-1 mb-0 text-xs text-emerald-300' : 'mt-1 mb-0 text-xs text-amber-300';
 }
 
@@ -80,25 +80,15 @@ async function sendMessage() {
   output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false;
   Companion.controller = new AbortController();
   try {
-    const response = await fetch(`${CONFIG.apiBase}/api/chat/stream`, {
+    const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: Companion.controller.signal,
-      body: JSON.stringify({ messages: Companion.messages.slice(-12), locale: Companion.locale, context: weatherContext() }),
+      body: JSON.stringify({ 0: { json: { messages: Companion.messages.slice(-12), locale: Companion.locale, context: weatherContext() } } }),
     });
-    if (!response.ok || !response.body) throw new Error(`الخادم أعاد ${response.status}`);
-    const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let answer = '';
-    output.textContent = '';
-    while (true) {
-      const { value, done } = await reader.read(); if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const frames = buffer.split('\n\n'); buffer = frames.pop() || '';
-      for (const frame of frames) {
-        const line = frame.split('\n').find(item => item.startsWith('data:'));
-        if (!line) continue;
-        const payload = JSON.parse(line.slice(5));
-        if (payload.delta) { answer += payload.delta; output.textContent = answer; }
-      }
-    }
-    if (answer) { Companion.messages.push({ role: 'assistant', content: answer }); speak(answer); }
+    const payload = await response.json();
+    const answer = payload?.[0]?.result?.data?.json?.reply;
+    if (!response.ok || typeof answer !== 'string' || !answer.trim()) throw new Error(`الخادم أعاد ${response.status}`);
+    output.textContent = answer.trim();
+    Companion.messages.push({ role: 'assistant', content: answer.trim() }); speak(answer.trim());
   } catch (error) {
     if (error.name !== 'AbortError') { output.textContent = 'تعذر الاتصال بخادم Sentinel. لم تُعرض إجابة تجريبية.'; showToast('تعذر الاتصال بالخادم.', 'error'); }
   } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; }
