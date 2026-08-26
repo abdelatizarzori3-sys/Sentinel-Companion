@@ -5,6 +5,12 @@ const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
 const llmBase = (process.env.OPENAI_API_BASE || '').replace(/\/+$/, '');
 const llmKey = process.env.OPENAI_API_KEY || '';
 const model = process.env.LLM_MODEL || 'gpt-5-mini';
+const streamWindowMs = 60_000;
+const streamLimit = 10;
+const streamClients = new Map();
+
+function clientKey(req) { return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim(); }
+function rateLimit(req, res) { const key = clientKey(req); const now = Date.now(); const current = streamClients.get(key); if (!current || current.resetAt <= now) { streamClients.set(key, { count: 1, resetAt: now + streamWindowMs }); return true; } if (current.count >= streamLimit) { const retryAfter = Math.ceil((current.resetAt - now) / 1000); res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Retry-After': String(retryAfter), 'Access-Control-Allow-Origin': allowedOrigin, Vary: 'Origin' }); res.end(JSON.stringify({ error: 'Too many stream requests', retryAfter })); return false; } current.count += 1; return true; }
 
 const json = (res, status, payload) => {
   res.writeHead(status, {
@@ -60,6 +66,7 @@ async function route(req, res) {
   try {
     const body = await readBody(req);
     if (req.url === '/api/chat/stream') {
+      if (!rateLimit(req, res)) return;
       const messages = Array.isArray(body.messages) ? body.messages.slice(-12).filter(item => item && ['user','assistant'].includes(item.role) && typeof item.content === 'string').map(item => ({ role: item.role, content: item.content.slice(0, 4000) })) : [];
       if (!messages.length || messages[messages.length - 1].role !== 'user') return json(res, 400, { error: 'A user message is required' });
       return await streamLLM([{ role: 'system', content: 'You are Sentinel, a warm futuristic companion. Speak naturally and briefly in the user language. Offer weather, sunrise, sunset, and safety advice only when relevant. Never claim to sense a device unless the browser explicitly reports a sensor event. Never perform external actions; ask for confirmation before anything consequential.' }, ...messages], res);
