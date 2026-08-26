@@ -19,7 +19,7 @@ async function serveFrontend(req, res) {
   const requested = req.url === '/' ? '/index.html' : req.url.split('?')[0];
   const filePath = normalize(join(rootDir, requested));
   if (!filePath.startsWith(rootDir) || filePath === rootDir) return false;
-  try { const body = await readFile(filePath); res.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream', 'Cache-Control': requested === '/index.html' ? 'no-cache' : 'public, max-age=3600' }); res.end(body); return true; } catch { return false; }
+  try { const body = await readFile(filePath); res.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream', 'Cache-Control': ['/', '/index.html', '/app.js'].includes(requested) || extname(filePath) === '.css' ? 'no-cache' : 'public, max-age=3600' }); res.end(body); return true; } catch { return false; }
 }
 
 function clientKey(req) { return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim(); }
