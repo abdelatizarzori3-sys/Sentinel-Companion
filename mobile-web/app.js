@@ -3,9 +3,9 @@ const CONFIG = {
 };
 
 const Companion = {
-  controller: null, messages: [], locale: 'ar-MA', voiceEnabled: false,
+  controller: null, messages: [], locale: 'ar-MA', voiceEnabled: true,
   voices: [], voiceName: '', listening: false, recognition: null, sensors: false,
-  lastMotionAt: 0, weather: null,
+  lastMotionAt: 0, weather: null, recording: false,
 };
 
 const $ = id => document.getElementById(id);
@@ -56,7 +56,16 @@ function chosenVoice() {
 }
 
 function speak(text) {
-  if (!Companion.voiceEnabled || !('speechSynthesis' in window) || !text.trim()) return;
+  if (!Companion.voiceEnabled || !text.trim()) return;
+  const nativeTts = window.Capacitor?.Plugins?.NativeTextToSpeech;
+  if (nativeTts?.speak) {
+    setRobotState('speaking', 'Sentinel يتحدث الآن');
+    nativeTts.speak({ text, locale: Companion.locale })
+      .catch(() => showToast('تعذر نطق الرد من خدمة الصوت في الجهاز. يبقى الرد مكتوبًا أمامك.', 'info'))
+      .finally(() => setRobotState('idle', 'جاهز للتفاعل'));
+    return;
+  }
+  if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   const voice = chosenVoice();
@@ -68,7 +77,7 @@ function speak(text) {
 }
 
 function previewVoice() {
-  if (!('speechSynthesis' in window)) return showToast('النطق غير مدعوم في هذا الجهاز.', 'error');
+  if (!window.Capacitor?.Plugins?.NativeTextToSpeech && !('speechSynthesis' in window)) return showToast('النطق غير مدعوم في هذا الجهاز.', 'error');
   const line = Companion.locale === 'ar-MA' ? 'سلام، أنا Sentinel. نقدر نهضر معاك بالدارجة المغربية.' : Companion.locale === 'en-US' ? 'Hello, I am Sentinel, your voice companion.' : 'مرحبًا، أنا Sentinel، رفيقك الصوتي.';
   const enabled = Companion.voiceEnabled; Companion.voiceEnabled = true; speak(line); Companion.voiceEnabled = enabled;
 }
@@ -106,6 +115,7 @@ async function sendMessage() {
 
 function stopStream() {
   Companion.controller?.abort(); Companion.controller = null;
+  window.Capacitor?.Plugins?.NativeTextToSpeech?.stop?.().catch(() => {});
   window.speechSynthesis?.cancel();
   setRobotState('idle', 'تم إيقاف الاستجابة');
   $('companion-stop').disabled = true; $('companion-send').disabled = false;
@@ -148,6 +158,10 @@ function nativeRecognitionPlugin() {
   return window.Capacitor?.Plugins?.NativeSpeechRecognition || null;
 }
 
+function nativeAudioRecorderPlugin() {
+  return window.Capacitor?.Plugins?.NativeAudioRecorder || null;
+}
+
 async function refreshMicrophonePermission() {
   const plugin = nativeRecognitionPlugin(); const state = $('microphone-permission-state');
   if (!plugin || !state || typeof plugin.checkPermissions !== 'function') return;
@@ -188,6 +202,53 @@ async function openMicrophoneSettings() {
   }
 }
 
+async function requestSentinelTranscription(recording) {
+  const response = await fetch(`${CONFIG.apiBase}/api/trpc/voice.sentinelTranscribe?batch=1`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 0: { json: { audioBase64: recording.audioBase64, mimeType: recording.mimeType || 'audio/mp4', locale: Companion.locale } } }),
+  });
+  const payload = await response.json().catch(() => null);
+  const text = payload?.[0]?.result?.data?.json?.text;
+  if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(payload?.[0]?.error?.json?.message || 'TRANSCRIPTION_FAILED');
+  return text.trim();
+}
+
+async function toggleRecordedConversation(plugin) {
+  const button = $('listen-toggle'); const output = $('companion-stream');
+  if (!Companion.recording) {
+    if (!await ensureNativeMicrophonePermission(plugin)) return;
+    try {
+      await plugin.startRecording();
+      Companion.recording = true; Companion.listening = true;
+      button.textContent = 'إنهاء وإرسال الصوت';
+      output.textContent = 'Sentinel يستمع… تكلّم الآن، ثم اضغط الزر مرة ثانية للإرسال.';
+      setRobotState('listening', 'أستمع إليك الآن…');
+    } catch {
+      showToast('تعذر بدء تسجيل الصوت. تحقق من إذن الميكروفون ثم حاول مجددًا.', 'error');
+      setRobotState('idle', 'جاهز للتفاعل');
+    }
+    return;
+  }
+  try {
+    button.disabled = true; output.textContent = 'Sentinel يحوّل صوتك إلى نص…'; setRobotState('thinking', 'أحوّل صوتك إلى نص…');
+    const recording = await plugin.stopRecording();
+    Companion.recording = false; Companion.listening = false;
+    const text = await requestSentinelTranscription(recording);
+    $('companion-input').value = text;
+    output.textContent = `سمعتك تقول: ${text}`;
+    await sendMessage();
+  } catch (error) {
+    const reason = String(error?.message || error);
+    if (reason.includes('AUDIO_TOO_SHORT') || reason.includes('AUDIO_EMPTY')) showToast('المقطع قصير جدًا. تكلّم لثانية واحدة على الأقل ثم أرسله.', 'info');
+    else if (reason.includes('AUDIO_TOO_LARGE')) showToast('المقطع طويل. أرسل رسالة صوتية أقصر.', 'info');
+    else showToast(reason.includes('تعذر') ? reason : 'تعذر تحويل صوتك إلى نص الآن. جرّب رسالة أقصر أو اكتبها.', 'error');
+    output.textContent = 'لم تكتمل الرسالة الصوتية. يمكنك المحاولة مرة أخرى أو الكتابة.';
+  } finally {
+    Companion.recording = false; Companion.listening = false; button.disabled = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission();
+    if (!Companion.controller) setRobotState('idle', 'جاهز للتفاعل');
+  }
+}
+
 async function toggleNativeListening(plugin) {
   const button = $('listen-toggle');
   if (Companion.listening) {
@@ -213,6 +274,8 @@ async function toggleNativeListening(plugin) {
 }
 
 function toggleListening() {
+  const recorder = nativeAudioRecorderPlugin();
+  if (recorder) return toggleRecordedConversation(recorder);
   const nativePlugin = nativeRecognitionPlugin();
   if (nativePlugin) return toggleNativeListening(nativePlugin);
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -234,13 +297,14 @@ function startRecognition(Recognition) {
 }
 
 function updateVoiceCapability() {
+  const recorder = nativeAudioRecorderPlugin();
   const nativePlugin = nativeRecognitionPlugin();
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const listen = $('listen-toggle'); const fallback = $('voice-fallback');
-  if (nativePlugin) {
+  if (recorder || nativePlugin) {
     listen.disabled = false;
     listen.textContent = 'بدء الاستماع';
-    fallback.textContent = 'يستخدم Sentinel خدمة التعرف الصوتي الأصلية في Android. سيطلب الإذن مرة واحدة عند بدء الاستماع؛ تبقى المحادثة النصية متاحة دائمًا.';
+    fallback.textContent = recorder ? 'يسجل Sentinel رسالتك أولًا ثم يحولها إلى نص ويرسل الرد المنطوق. اضغط «بدء الاستماع»، تكلّم، ثم اضغط الزر ثانية للإرسال.' : 'يستخدم Sentinel خدمة التعرف الصوتي الأصلية في Android. سيطلب الإذن مرة واحدة عند بدء الاستماع؛ تبقى المحادثة النصية متاحة دائمًا.';
     return;
   }
   if (!Recognition) {
@@ -270,6 +334,7 @@ function init() {
   $('companion-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
   $('companion-locale').addEventListener('change', event => { Companion.locale = event.target.value; loadVoices(); });
   $('companion-voice').addEventListener('change', event => { Companion.voiceName = event.target.value; });
+  $('voice-toggle').textContent = 'الصوت مفعّل';
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
   $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('sensor-toggle').addEventListener('click', toggleSensors);
   $('microphone-settings')?.addEventListener('click', openMicrophoneSettings);
