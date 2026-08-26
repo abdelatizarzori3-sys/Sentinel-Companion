@@ -16,6 +16,20 @@ function setRobotState(state = 'idle', label = 'جاهز للتفاعل') {
   if (caption) caption.textContent = label;
 }
 
+function setVoiceStage(stage = 'ready', note = 'جاهز للاستماع أو الكتابة.') {
+  const pipeline = $('voice-pipeline'); const noteNode = $('voice-stage-note');
+  if (pipeline) pipeline.dataset.stage = stage;
+  if (noteNode) noteNode.textContent = note;
+  const order = ['recording', 'transcription', 'reply', 'speaking'];
+  const activeIndex = order.indexOf(stage);
+  document.querySelectorAll('.voice-step').forEach((item, index) => {
+    item.classList.remove('active', 'done', 'error');
+    if (stage === 'error' && index === 0) item.classList.add('error');
+    else if (activeIndex >= 0 && index < activeIndex) item.classList.add('done');
+    else if (index === activeIndex) item.classList.add('active');
+  });
+}
+
 function showToast(message, kind = 'info') {
   const toast = $('toast');
   if (!toast) return;
@@ -60,8 +74,9 @@ function speak(text) {
   const nativeTts = window.Capacitor?.Plugins?.NativeTextToSpeech;
   if (nativeTts?.speak) {
     setRobotState('speaking', 'Sentinel يتحدث الآن');
+    setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.');
     nativeTts.speak({ text, locale: Companion.locale })
-      .catch(() => showToast('تعذر نطق الرد من خدمة الصوت في الجهاز. يبقى الرد مكتوبًا أمامك.', 'info'))
+      .catch(() => { setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); showToast('تعذر نطق الرد من خدمة الصوت في الجهاز. يبقى الرد مكتوبًا أمامك.', 'info'); })
       .finally(() => setRobotState('idle', 'جاهز للتفاعل'));
     return;
   }
@@ -70,9 +85,9 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   const voice = chosenVoice();
   if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = Companion.locale;
-  utterance.onstart = () => setRobotState('speaking', 'Sentinel يتحدث الآن');
-  utterance.onend = () => setRobotState('idle', 'جاهز للتفاعل');
-  utterance.onerror = () => setRobotState('idle', 'جاهز للتفاعل');
+  utterance.onstart = () => { setRobotState('speaking', 'Sentinel يتحدث الآن'); setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.'); };
+  utterance.onend = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); };
+  utterance.onerror = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); };
   window.speechSynthesis.speak(utterance);
 }
 
@@ -96,7 +111,7 @@ async function sendMessage() {
     return showToast('المحادثة تحتاج خادم Sentinel منشورًا.', 'error');
   }
   input.value = ''; Companion.messages.push({ role: 'user', content });
-  output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false; setRobotState('thinking', 'Sentinel يفكر في رد مناسب');
+  output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false; setRobotState('thinking', 'Sentinel يفكر في رد مناسب'); setVoiceStage('reply', 'وصل النص إلى Sentinel؛ يجري إعداد الرد الآن.');
   Companion.controller = new AbortController();
   try {
     const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
@@ -109,8 +124,8 @@ async function sendMessage() {
     output.textContent = answer.trim();
     Companion.messages.push({ role: 'assistant', content: answer.trim() }); speak(answer.trim());
   } catch (error) {
-    if (error.name !== 'AbortError') { output.textContent = 'تعذر الاتصال بخادم Sentinel. لم تُعرض إجابة تجريبية.'; showToast('تعذر الاتصال بالخادم.', 'error'); }
-  } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; if (!Companion.voiceEnabled) setRobotState('idle', 'جاهز للتفاعل'); }
+    if (error.name !== 'AbortError') { output.textContent = 'تعذر الاتصال بخادم Sentinel. لم تُعرض إجابة تجريبية.'; setVoiceStage('error', 'توقف عند مرحلة الرد من الخادم.'); showToast('تعذر الاتصال بالخادم.', 'error'); }
+  } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; if (!Companion.voiceEnabled) { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); } }
 }
 
 function stopStream() {
@@ -222,7 +237,7 @@ async function toggleRecordedConversation(plugin) {
       Companion.recording = true; Companion.listening = true;
       button.textContent = 'إنهاء وإرسال الصوت';
       output.textContent = 'Sentinel يستمع… تكلّم الآن، ثم اضغط الزر مرة ثانية للإرسال.';
-      setRobotState('listening', 'أستمع إليك الآن…');
+      setRobotState('listening', 'أستمع إليك الآن…'); setVoiceStage('recording', 'التسجيل يعمل الآن. تكلّم ثم اضغط الزر مرة ثانية للإرسال.');
     } catch {
       showToast('تعذر بدء تسجيل الصوت. تحقق من إذن الميكروفون ثم حاول مجددًا.', 'error');
       setRobotState('idle', 'جاهز للتفاعل');
@@ -230,7 +245,7 @@ async function toggleRecordedConversation(plugin) {
     return;
   }
   try {
-    button.disabled = true; output.textContent = 'Sentinel يحوّل صوتك إلى نص…'; setRobotState('thinking', 'أحوّل صوتك إلى نص…');
+    button.disabled = true; output.textContent = 'Sentinel يحوّل صوتك إلى نص…'; setRobotState('thinking', 'أحوّل صوتك إلى نص…'); setVoiceStage('transcription', 'يرسل التسجيل للتحويل إلى نص…');
     const recording = await plugin.stopRecording();
     Companion.recording = false; Companion.listening = false;
     const text = await requestSentinelTranscription(recording);
@@ -242,7 +257,7 @@ async function toggleRecordedConversation(plugin) {
     if (reason.includes('AUDIO_TOO_SHORT') || reason.includes('AUDIO_EMPTY')) showToast('المقطع قصير جدًا. تكلّم لثانية واحدة على الأقل ثم أرسله.', 'info');
     else if (reason.includes('AUDIO_TOO_LARGE')) showToast('المقطع طويل. أرسل رسالة صوتية أقصر.', 'info');
     else showToast(reason.includes('تعذر') ? reason : 'تعذر تحويل صوتك إلى نص الآن. جرّب رسالة أقصر أو اكتبها.', 'error');
-    output.textContent = 'لم تكتمل الرسالة الصوتية. يمكنك المحاولة مرة أخرى أو الكتابة.';
+    output.textContent = 'لم تكتمل الرسالة الصوتية. يمكنك المحاولة مرة أخرى أو الكتابة.'; setVoiceStage('error', `توقفت دورة الصوت: ${reason.includes('AUDIO') ? 'التسجيل' : 'تحويل الصوت إلى نص'}.`);
   } finally {
     Companion.recording = false; Companion.listening = false; button.disabled = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission();
     if (!Companion.controller) setRobotState('idle', 'جاهز للتفاعل');
@@ -328,7 +343,7 @@ function onMotion(event) {
 }
 
 function init() {
-  setRobotState('idle', 'جاهز للتفاعل'); updateServiceStatus(); updateVoiceCapability(); refreshMicrophonePermission(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+  setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); updateServiceStatus(); updateVoiceCapability(); refreshMicrophonePermission(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
   $('connection-help').addEventListener('click', () => showToast(CONFIG.apiBase ? `الخادم المحدد: ${CONFIG.apiBase}` : 'لا يوجد خادم Sentinel محدد في هذه النسخة.', CONFIG.apiBase ? 'info' : 'error'));
   $('companion-send').addEventListener('click', sendMessage); $('companion-stop').addEventListener('click', stopStream);
   $('companion-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });

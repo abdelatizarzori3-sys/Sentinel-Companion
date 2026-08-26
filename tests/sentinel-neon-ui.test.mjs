@@ -10,11 +10,14 @@ const script = readFileSync(resolve(root, 'mobile-web/app.js'), 'utf8');
 test('Sentinel neon interface preserves the 3D robot, live state and essential controls', () => {
   assert.match(html, /sentinel-neon-3d-robot_04ad6455\.png/);
   assert.match(html, /id="robot-stage"/);
+  assert.match(html, /lip-sync/);
+  assert.match(html, /voice-pipeline/);
   assert.match(html, /id="listen-toggle"/);
   assert.match(html, /id="microphone-settings"/);
   assert.match(html, /id="companion-input"/);
   assert.match(html, /prefers-reduced-motion/);
   assert.match(script, /function setRobotState/);
+  assert.match(script, /function setVoiceStage/);
   assert.match(script, /setRobotState\('listening'/);
   assert.match(script, /setRobotState\('thinking'/);
   assert.match(script, /setRobotState\('speaking'/);
