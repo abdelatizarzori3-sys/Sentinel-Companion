@@ -13,7 +13,8 @@ const $ = id => document.getElementById(id);
 function showToast(message, kind = 'info') {
   const toast = $('toast');
   if (!toast) return;
-  toast.textContent = message;
+  const messageNode = $('toast-message');
+  if (messageNode) messageNode.textContent = message;
   toast.style.borderColor = kind === 'error' ? 'rgba(248,113,113,.45)' : kind === 'success' ? 'rgba(74,222,128,.45)' : 'rgba(103,232,249,.35)';
   toast.dataset.open = 'true';
   window.clearTimeout(showToast.timer);
@@ -135,13 +136,31 @@ function loadJoke() {
 
 function toggleListening() {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Recognition) return showToast('الاستماع غير مدعوم في هذا الجهاز.', 'error');
+  if (!Recognition) return showToast('الاستماع الصوتي غير مدعوم هنا. اكتب رسالتك وسيجيب Sentinel مباشرة.', 'info');
   if (Companion.listening) { Companion.listening = false; Companion.recognition?.stop(); $('listen-toggle').textContent = 'بدء الاستماع'; return; }
+  if (!navigator.mediaDevices?.getUserMedia) return showToast('لا تتوفر واجهة الميكروفون في هذا الجهاز. استخدم الكتابة للمحادثة.', 'info');
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    stream.getTracks().forEach(track => track.stop());
+    startRecognition(Recognition);
+  }).catch(() => showToast('لم يُمنح إذن الميكروفون. يمكنك متابعة المحادثة بالكتابة.', 'info'));
+}
+
+function startRecognition(Recognition) {
   const recognition = new Recognition(); recognition.lang = Companion.locale; recognition.interimResults = false;
   recognition.onresult = event => { const text = event.results[0]?.[0]?.transcript?.trim(); if (text) { $('companion-input').value = text; sendMessage(); } };
-  recognition.onerror = () => showToast('تعذر الوصول للميكروفون.', 'error');
+  recognition.onerror = () => showToast('تعذر تشغيل الاستماع. يمكنك متابعة المحادثة بالكتابة.', 'info');
   recognition.onend = () => { Companion.listening = false; $('listen-toggle').textContent = 'بدء الاستماع'; };
   Companion.recognition = recognition; Companion.listening = true; recognition.start(); $('listen-toggle').textContent = 'إيقاف الاستماع';
+}
+
+function updateVoiceCapability() {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const listen = $('listen-toggle'); const fallback = $('voice-fallback');
+  if (!Recognition) {
+    listen.disabled = true;
+    listen.textContent = 'الاستماع غير مدعوم';
+    fallback.textContent = 'هذا الجهاز لا يدعم الاستماع الصوتي داخل التطبيق. اكتب رسالتك في الحقل أدناه؛ المحادثة النصية تعمل بشكل مستقل.';
+  }
 }
 
 async function toggleSensors() {
@@ -158,7 +177,7 @@ function onMotion(event) {
 }
 
 function init() {
-  updateServiceStatus(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+  updateServiceStatus(); updateVoiceCapability(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
   $('connection-help').addEventListener('click', () => showToast(CONFIG.apiBase ? `الخادم المحدد: ${CONFIG.apiBase}` : 'لا يوجد خادم Sentinel محدد في هذه النسخة.', CONFIG.apiBase ? 'info' : 'error'));
   $('companion-send').addEventListener('click', sendMessage); $('companion-stop').addEventListener('click', stopStream);
   $('companion-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
@@ -167,6 +186,7 @@ function init() {
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
   $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('sensor-toggle').addEventListener('click', toggleSensors);
   $('weather-location').addEventListener('click', updateWeather); $('joke-load').addEventListener('click', loadJoke);
+  $('toast-dismiss').addEventListener('click', () => { $('toast').dataset.open = 'false'; });
 }
 
 document.addEventListener('DOMContentLoaded', init);

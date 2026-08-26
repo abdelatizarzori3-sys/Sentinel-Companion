@@ -28,7 +28,7 @@
       .action { border: 1px solid rgba(105, 225, 255, .35); background: linear-gradient(135deg, #0e9dcc, #4a65dc); color: white; border-radius: .8rem; padding: .75rem 1rem; font-weight: 800; }
       .action:disabled { opacity: .5; cursor: not-allowed; }
       #companion-stream { white-space: pre-wrap; min-height: 7rem; line-height: 2; }
-      #toast { transition: opacity .2s ease, transform .2s ease; }
+      #toast { transition: opacity .2s ease, transform .2s ease; bottom: max(1rem, env(safe-area-inset-bottom)); }
       #toast[data-open="false"] { opacity: 0; transform: translateY(1rem); pointer-events: none; }
       @keyframes orbit { 50% { transform: scale(1.07); opacity: .35; } }
       @media (prefers-reduced-motion: reduce) { .pulse-orbit::before, .pulse-orbit::after { animation: none; } }
@@ -61,7 +61,7 @@
           <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><button class="control" id="voice-toggle" type="button" aria-pressed="false">الصوت متوقف</button><button class="control" id="preview-voice" type="button">تجربة الصوت</button><button class="control" id="listen-toggle" type="button" aria-pressed="false">بدء الاستماع</button><button class="control" id="sensor-toggle" type="button" aria-pressed="false">تفعيل الحركة</button></div>
           <div id="companion-stream" class="mt-4 rounded-2xl border border-white/10 bg-slate-950/35 p-4 text-sm text-slate-200" role="status" aria-live="polite">اكتب رسالة لبدء محادثة Sentinel. لا تُرسل بيانات الموقع أو الصوت إلا بعد إذنك.</div>
           <div class="mt-3 flex gap-2"><input id="companion-input" class="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white placeholder-slate-500" placeholder="اكتب رسالة للرفيق..." autocomplete="off" /><button class="action" id="companion-send" type="button">إرسال</button><button class="control text-red-200" id="companion-stop" type="button" disabled>إيقاف</button></div>
-          <p class="mt-3 mb-0 text-[11px] leading-6 text-slate-500">الصوت والاستماع اختياريان ويعتمدان على دعم الجهاز. لا ينفذ Sentinel أي فعل خارجي دون تأكيد صريح.</p>
+          <p id="voice-fallback" class="mt-3 mb-0 text-[11px] leading-6 text-slate-500">الصوت والاستماع اختياريان. إذا لم يدعم الجهاز الاستماع، تبقى المحادثة النصية متاحة دائمًا.</p>
         </section>
 
         <section class="glass rounded-3xl p-4 sm:p-5" aria-labelledby="context-title">
@@ -74,7 +74,7 @@
       </main>
       <footer class="px-2 pt-6 text-center text-[11px] text-slate-500">Sentinel Companion · تطوير Abdelati Zarzori</footer>
     </div>
-    <div id="toast" data-open="false" class="fixed bottom-5 left-4 right-4 mx-auto max-w-md rounded-xl border border-cyan-300/20 bg-slate-900/95 px-4 py-3 text-center text-sm shadow-2xl" role="alert"></div>
+    <div id="toast" data-open="false" class="fixed left-4 right-4 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl border border-cyan-300/20 bg-slate-900/95 px-4 py-3 text-right text-sm shadow-2xl" role="alert"><span id="toast-message"></span><button id="toast-dismiss" type="button" class="shrink-0 rounded-md px-2 text-lg leading-none text-slate-300" aria-label="إغلاق التنبيه">×</button></div>
     <script src="app.js"></script>
   </body>
 </html>
