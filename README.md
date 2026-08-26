@@ -1,43 +1,68 @@
-# ScriptGuard AI
+# Sentinel-Companion
 
-Micro-SaaS developed by **Abdelati Zarzori**.
+رفيق ذكاء اصطناعي مستقبلي من تطوير **Abdelati Zarzori**، يعمل من واجهة ويب خفيفة قابلة للتشغيل على الحاسوب والهاتف.
 
-ScriptGuard AI is a browser-based code review workspace for inspecting source files, viewing security and quality findings, translating Python comments and string literals, and packaging local files as ZIP archives. The interface supports Arabic RTL presentation and keeps file-manager operations local to the browser.
+## الرؤية
 
-## Current capabilities
+Sentinel-Companion ليس منفذ مهام صامتًا؛ بل رفيق محادثة طبيعي يحافظ على وضوح هويته كذكاء اصطناعي. يدعم المحادثة النصية، البث التدريجي من الخادم، النطق الاختياري، والدارجة المغربية إلى جانب العربية والإنجليزية. يمكنه لاحقًا استقبال سياق الطقس والشروق والغروب والحركة، لكن كل حساس أو ميكروفون يحتاج إذنًا صريحًا من الجهاز.
 
-The Python translator scans comments and single, double, and triple-quoted string literals while preserving Python keywords, identifiers, operators, indentation, and file structure. It protects f-string expressions and placeholders and leaves byte-string bodies unchanged. The file manager accepts multiple files or a complete directory, preserves relative paths, provides local read/edit/save controls for text files, and creates a downloadable ZIP without automatic upload.
+## الميزات الحالية
 
-The local translator is a structure-preserving fallback, not a complete natural-language engine: unfamiliar words may remain untranslated, malformed or unterminated Python strings are not rewritten, and the UI warns the user when the server translation route is unavailable. For complete language translation, configure the server and use `POST /api/translate`; review all generated code before execution.
+تتضمن الصفحة الرئيسية روبوتًا مستقبليًا ثلاثي الأبعاد تفاعليًا مع دعم الهاتف واحترام `prefers-reduced-motion`. وتحتوي لوحة الرفيق على اختيار اللغة، بث SSE من الخادم، إيقاف فوري، كتم الصوت، والاستماع عبر Web Speech API عندما يدعمه المتصفح. كما توجد واجهة مدير الملفات ومترجم Python المحافظ على البنية من النسخة الأصلية.
 
-The code-analysis screen can use the configured API when available. If the API cannot be reached, the interface falls back to clearly labelled local demonstration data; demonstration results must not be treated as a real security audit.
+وضع الحركة اختياري ومقيّد بوجود HTTPS ودعم `DeviceMotionEvent`. عند تفعيل الاستماع والحساس معًا، يمكن للحركة القوية أن تولّد سؤالًا عفويًا محدود التكرار؛ لا يعمل ذلك سرًا ولا يُفعّل في الخلفية دون أذونات المتصفح.
 
-## Run locally
+## التشغيل المحلي
 
-Serve the repository with any static HTTP server, for example:
+شغّل الواجهة بخادم HTTP ثابت:
 
 ```bash
 python3 -m http.server 4173
 ```
 
-Then open `http://127.0.0.1:4173/`. The project currently uses CDN dependencies for Tailwind CSS, Prism, Font Awesome, and JSZip, so an internet connection is required for the full visual experience.
+ثم افتح `http://127.0.0.1:4173/`.
 
-## API configuration
+شغّل API البث في طرفية أخرى:
 
-The current frontend defaults to `http://localhost:3000`. The repository now includes an optional deployable `server.mjs` API. Run it with `PORT=3000 node server.mjs`; configure `OPENAI_API_BASE`, `OPENAI_API_KEY`, `LLM_MODEL`, and `ALLOWED_ORIGIN` only as server environment variables. It exposes `GET /api/health`, `POST /api/analyze`, and `POST /api/translate`. The browser translator remains structure-first and local by default; the API translator is available for a deployment that has been reviewed for privacy and credentials. Never place API keys, passwords, or provider credentials in this repository or in browser code.
+```bash
+OPENAI_API_BASE=https://your-provider.example/v1 \
+OPENAI_API_KEY=replace-on-server-only \
+LLM_MODEL=gpt-5-mini \
+ALLOWED_ORIGIN=http://127.0.0.1:4173 \
+PORT=3000 node server.mjs
+```
 
-## Privacy and safety
+لا تضع المفتاح الحقيقي في الأوامر المحفوظة أو داخل GitHub؛ استخدم متغيرات البيئة السرية في Render أو Railway أو Docker أو خادمك الخاص.
 
-Files selected in the ZIP manager remain in browser memory and are not uploaded automatically. Editing a file changes only the in-memory ZIP item until the user downloads the archive. Do not upload secrets, private keys, production credentials, or confidential source code to an analysis service unless the deployment's privacy policy and server configuration have been reviewed.
+## نقاط API
 
-## Tests
+يوفر الخادم `GET /api/health` لفحص الحالة، و`POST /api/analyze` لتحليل الكود، و`POST /api/translate` لترجمة نصوص Python، و`POST /api/chat/stream` لبث محادثة Sentinel بصيغة SSE. يقبل مسار المحادثة `messages` و`locale`، ومنها `ar-MA` للدارجة المغربية.
 
-Run `npm run test:translator` to exercise comments, docstrings, triple-quoted strings, escaped quotes, raw strings, byte strings, f-string expressions, nested braces, and identifier preservation. Run `node --check app.js` and `node --check server.mjs` for syntax validation.
+مثال مختصر لطلب البث:
 
-## Developer
+```json
+{
+  "locale": "ar-MA",
+  "messages": [{"role": "user", "content": "آش واقع اليوم؟"}]
+}
+```
 
-**Abdelati Zarzori** — product owner and lead developer.
+## الخصوصية والسلامة
 
-## License
+لا يُرسل النص إلى الخادم إلا بعد الضغط على الإرسال. الصوت اختياري، ويمكن إيقافه فورًا. الوصول إلى الميكروفون والحركة والموقع ليس مضمونًا على جميع المتصفحات ويخضع لأذونات النظام. لا ينفذ Sentinel أوامر سيارة أو جهاز أو حساب أو عملية مالية؛ أي تكامل خارجي مستقبلي يجب أن يعرض معاينة ويطلب تأكيدًا قبل التنفيذ.
 
-Add a project license before public redistribution.
+## الاختبارات
+
+```bash
+npm run test:translator
+node --check app.js
+node --check server.mjs
+```
+
+## المطور
+
+**Abdelati Zarzori** — مالك المنتج والمطور الرئيسي.
+
+## الترخيص
+
+أضف ملف ترخيص قبل إعادة التوزيع العام.
