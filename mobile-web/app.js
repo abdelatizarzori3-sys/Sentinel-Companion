@@ -138,12 +138,53 @@ function nativeRecognitionPlugin() {
   return window.Capacitor?.Plugins?.NativeSpeechRecognition || null;
 }
 
+async function refreshMicrophonePermission() {
+  const plugin = nativeRecognitionPlugin(); const state = $('microphone-permission-state');
+  if (!plugin || !state || typeof plugin.checkPermissions !== 'function') return;
+  try {
+    const permissions = await plugin.checkPermissions();
+    const granted = permissions?.microphone === 'granted';
+    state.textContent = granted ? 'إذن الميكروفون مفعّل' : 'إذن الميكروفون غير مفعّل';
+    state.className = granted ? 'text-[11px] text-emerald-300' : 'text-[11px] text-amber-300';
+  } catch {
+    state.textContent = 'تعذر قراءة حالة الإذن'; state.className = 'text-[11px] text-amber-300';
+  }
+}
+
+async function ensureNativeMicrophonePermission(plugin) {
+  if (typeof plugin.checkPermissions !== 'function' || typeof plugin.requestPermissions !== 'function') return true;
+  try {
+    const current = await plugin.checkPermissions();
+    if (current?.microphone === 'granted') return true;
+    const requested = await plugin.requestPermissions({ permissions: ['microphone'] });
+    await refreshMicrophonePermission();
+    if (requested?.microphone === 'granted') return true;
+    showToast('افتح إعدادات التطبيق ثم فعّل «الميكروفون» لـ Sentinel، وبعدها ارجع واضغط بدء الاستماع.', 'info');
+    return false;
+  } catch {
+    showToast('تعذر طلب إذن الميكروفون. افتح الإعدادات وفَعِّله يدويًا.', 'info');
+    return false;
+  }
+}
+
+async function openMicrophoneSettings() {
+  const plugin = nativeRecognitionPlugin();
+  if (!plugin?.openAppSettings) return showToast('زر الإعدادات متاح داخل نسخة Android الجديدة فقط.', 'info');
+  try {
+    await plugin.openAppSettings();
+    showToast('فعّل «الميكروفون» لتطبيق Sentinel من شاشة الإعدادات، ثم ارجع للتطبيق.', 'info');
+  } catch {
+    showToast('تعذر فتح إعدادات التطبيق. افتح إعدادات الهاتف ثم التطبيقات ثم Sentinel ثم الأذونات.', 'info');
+  }
+}
+
 async function toggleNativeListening(plugin) {
   const button = $('listen-toggle');
   if (Companion.listening) {
     try { await plugin.stop(); } catch { /* The recognizer may already have stopped. */ }
     Companion.listening = false; button.textContent = 'بدء الاستماع'; return;
   }
+  if (!await ensureNativeMicrophonePermission(plugin)) return;
   Companion.listening = true; button.textContent = 'إيقاف الاستماع';
   try {
     const result = await plugin.start({ language: Companion.locale });
@@ -157,7 +198,7 @@ async function toggleNativeListening(plugin) {
     else if (reason.includes('RECOGNITION_NETWORK_ERROR')) showToast('تعذر الوصول لخدمة التعرف الصوتي. تحقق من الإنترنت ثم حاول مجددًا.', 'info');
     else if (!reason.includes('NO_SPEECH') && !reason.includes('RECOGNITION_CANCELLED')) showToast('تعذر التقاط الصوت الآن. يمكنك متابعة المحادثة بالكتابة.', 'info');
   } finally {
-    Companion.listening = false; button.textContent = 'بدء الاستماع';
+    Companion.listening = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission();
   }
 }
 
@@ -213,7 +254,7 @@ function onMotion(event) {
 }
 
 function init() {
-  updateServiceStatus(); updateVoiceCapability(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+  updateServiceStatus(); updateVoiceCapability(); refreshMicrophonePermission(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
   $('connection-help').addEventListener('click', () => showToast(CONFIG.apiBase ? `الخادم المحدد: ${CONFIG.apiBase}` : 'لا يوجد خادم Sentinel محدد في هذه النسخة.', CONFIG.apiBase ? 'info' : 'error'));
   $('companion-send').addEventListener('click', sendMessage); $('companion-stop').addEventListener('click', stopStream);
   $('companion-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
@@ -221,6 +262,7 @@ function init() {
   $('companion-voice').addEventListener('change', event => { Companion.voiceName = event.target.value; });
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
   $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('sensor-toggle').addEventListener('click', toggleSensors);
+  $('microphone-settings')?.addEventListener('click', openMicrophoneSettings);
   $('weather-location').addEventListener('click', updateWeather); $('joke-load').addEventListener('click', loadJoke);
   $('toast-dismiss').addEventListener('click', () => { $('toast').dataset.open = 'false'; });
 }

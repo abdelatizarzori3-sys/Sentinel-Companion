@@ -3,7 +3,9 @@ package com.abdelatizarzori.sentinel;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -80,6 +82,23 @@ public class NativeSpeechRecognitionPlugin extends Plugin {
             if (pendingCall != null) pendingCall.reject("RECOGNITION_CANCELLED");
             call.resolve();
         });
+    }
+
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("RECOGNITION_UNAVAILABLE");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.fromParts("package", getContext().getPackageName(), null));
+            activity.startActivity(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("SETTINGS_UNAVAILABLE");
+        }
     }
 
     private void beginRecognition(PluginCall call) {
