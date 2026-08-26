@@ -16,7 +16,8 @@ const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascr
 
 async function serveFrontend(req, res) {
   if (req.method !== 'GET') return false;
-  const requested = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  const requestedPath = req.url.split('?')[0];
+  const requested = requestedPath === '/' ? '/index.html' : requestedPath;
   const filePath = normalize(join(rootDir, requested));
   if (!filePath.startsWith(rootDir) || filePath === rootDir) return false;
   try { const body = await readFile(filePath); res.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream', 'Cache-Control': ['/', '/index.html', '/app.js'].includes(requested) || extname(filePath) === '.css' ? 'no-cache' : 'public, max-age=3600' }); res.end(body); return true; } catch { return false; }
