@@ -155,7 +155,7 @@ async function toggleNativeListening(plugin) {
     if (reason.includes('MICROPHONE_PERMISSION_DENIED')) showToast('لم يُمنح إذن الميكروفون. يمكنك متابعة المحادثة بالكتابة.', 'info');
     else if (reason.includes('RECOGNITION_UNAVAILABLE')) showToast('خدمة التعرف الصوتي غير متاحة على الجهاز حاليًا. اكتب رسالتك أو فعّل خدمة التعرف في إعدادات الهاتف.', 'info');
     else if (reason.includes('RECOGNITION_NETWORK_ERROR')) showToast('تعذر الوصول لخدمة التعرف الصوتي. تحقق من الإنترنت ثم حاول مجددًا.', 'info');
-    else if (!reason.includes('NO_SPEECH')) showToast('تعذر التقاط الصوت الآن. يمكنك متابعة المحادثة بالكتابة.', 'info');
+    else if (!reason.includes('NO_SPEECH') && !reason.includes('RECOGNITION_CANCELLED')) showToast('تعذر التقاط الصوت الآن. يمكنك متابعة المحادثة بالكتابة.', 'info');
   } finally {
     Companion.listening = false; button.textContent = 'بدء الاستماع';
   }
