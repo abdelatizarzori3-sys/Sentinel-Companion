@@ -41,7 +41,7 @@ const MockData = {
     statusIcon: '⚠️', statusIconBg: 'bg-red-500/20',
     issues: [
       { id:1, type:'critical', severity:'critical', icon:'🚨', title:'ثغرة Code Injection', description:'استخدام eval() مع مدخلات المستخدم يفتح الباب للحقن البرمجي.', line:5, code:'result = eval(user_input)' },
-      { id:2, type:'critical', severity:'critical', icon:'🔑', title:'API Key مكشوف', description:'تم العثور على مفتاح API مكتوب مباشرة في الكود.', line:8, code:'API_KEY = "sk-live-1234567890abcdef"' },
+      { id:2, type:'critical', severity:'critical', icon:'🔑', title:'API Key مكشوف', description:'تم العثور على مفتاح API مكتوب مباشرة في الكود.', line:8, code:'API_KEY = "<REDACTED_DEMO_KEY>"' },
       { id:3, type:'critical', severity:'critical', icon:'🔓', title:'SQL Injection', description:'تمرير مدخلات المستخدم مباشرة لاستعلام SQL بدون تطهير.', line:15, code:'query = f"SELECT * FROM users WHERE id = {user_id}"' },
       { id:4, type:'warning', severity:'medium', icon:'⚠️', title:'تسريب معلومات', description:'طباعة تفاصيل الاستثناءات قد تكشف هيكل قاعدة البيانات.', line:22, code:'except Exception as e:\n    print(e)' }
     ],

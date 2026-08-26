@@ -35,7 +35,7 @@ python3 -m http.server 4173
 
 ```bash
 OPENAI_API_BASE=https://your-provider.example/v1 \
-OPENAI_API_KEY=replace-on-server-only \
+OPENAI_API_KEY=your_server_secret_here \
 LLM_MODEL=gpt-5-mini \
 ALLOWED_ORIGIN=http://127.0.0.1:4173 \
 PORT=3000 node server.mjs
