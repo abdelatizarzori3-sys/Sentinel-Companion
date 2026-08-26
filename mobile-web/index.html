@@ -1,442 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sentinel-Companion | رفيق Sentinel الذكي</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { cairo: ['Cairo','sans-serif'] },
-          colors: {
-            dp: { 900:'#1a0b2e', 800:'#2d1b69', 700:'#3b2378', 600:'#4c2d8a' },
-            eb: { 400:'#00d4ff', 500:'#0ea5e9', 600:'#0284c7' },
-            nc: '#22d3ee'
-          },
-          animation: {
-            'spin-s':'spin 3s linear infinite',
-            'pulse-g':'pulse-glow 2s ease-in-out infinite',
-            'float':'float 6s ease-in-out infinite',
-            'slide-up':'slideUp 0.5s ease-out',
-            'fade-in':'fadeIn 0.4s ease-out',
-            'scale-in':'scaleIn 0.3s ease-out',
-          },
-          keyframes: {
-            'pulse-glow':{'0%,100%':{boxShadow:'0 0 20px rgba(34,211,238,0.3)'},'50%':{boxShadow:'0 0 40px rgba(34,211,238,0.6)'}},
-            'float':{'0%,100%':{transform:'translateY(0px)'},'50%':{transform:'translateY(-10px)'}},
-            'slideUp':{'0%':{opacity:'0',transform:'translateY(30px)'},'100%':{opacity:'1',transform:'translateY(0)'}},
-            'fadeIn':{'0%':{opacity:'0'},'100%':{opacity:'1'}},
-            'scaleIn':{'0%':{opacity:'0',transform:'scale(0.9)'},'100%':{opacity:'1',transform:'scale(1)'}}
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    *{font-family:'Cairo',sans-serif}
-    body{background:linear-gradient(135deg,#1a0b2e 0%,#2d1b69 50%,#0f172a 100%);min-height:100vh;overflow-x:hidden}
-    .glass{background:rgba(255,255,255,0.05);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1)}
-    .glass-s{background:rgba(255,255,255,0.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12)}
-    ::-webkit-scrollbar{width:6px}
-    ::-webkit-scrollbar-track{background:rgba(255,255,255,0.05)}
-    ::-webkit-scrollbar-thumb{background:rgba(34,211,238,0.3);border-radius:3px}
-    .dz{border:2px dashed rgba(34,211,238,0.3);transition:all .3s ease}
-    .dz.drag-over{border-color:#22d3ee;background:rgba(34,211,238,0.1);transform:scale(1.02)}
-    .cp{transform:rotate(-90deg)}
-    .cp circle{transition:stroke-dashoffset 1.5s ease-out}
-    .ce{background:#0d1117;border:1px solid rgba(34,211,238,0.2);font-family:'Fira Code','Consolas',monospace;direction:ltr;text-align:left}
-    .ce:focus{border-color:#22d3ee;box-shadow:0 0 20px rgba(34,211,238,0.15)}
-    .ic{transition:all .3s ease}
-    .ic:hover{transform:translateX(-5px)}
-    .nb{position:relative;overflow:hidden}
-    .nb::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent);transition:left .5s}
-    .nb:hover::before{left:100%}
-    .prt{position:fixed;border-radius:50%;background:rgba(34,211,238,0.1);pointer-events:none;animation:float 8s ease-in-out infinite}
-    .robot-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;margin:0 auto 2rem;max-width:72rem;padding:1.25rem;border:1px solid rgba(34,211,238,.16);border-radius:1.75rem;background:radial-gradient(circle at 75% 40%,rgba(34,211,238,.14),transparent 35%),linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.02));box-shadow:0 25px 80px rgba(0,0,0,.22);overflow:hidden}
-    .robot-copy{text-align:right}.robot-kicker{color:#67e8f9;font-size:.7rem;letter-spacing:.16em;text-transform:uppercase}.robot-copy h2{font-size:clamp(1.7rem,4vw,3.3rem);line-height:1.15;margin:.7rem 0;background:linear-gradient(100deg,#fff,#67e8f9 50%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}.robot-copy p{color:#a8b1c2;max-width:31rem;font-size:.9rem;line-height:1.9}.robot-status{display:flex;gap:.55rem;align-items:center;color:#9ca3af;font-size:.72rem;margin-top:1rem}.robot-status i{color:#22d3ee;filter:drop-shadow(0 0 8px #22d3ee)}
-    .robot-stage{height:20rem;display:grid;place-items:center;perspective:900px;position:relative;cursor:crosshair}.robot-stage::before{content:'';position:absolute;width:15rem;height:3rem;bottom:1.2rem;border-radius:50%;background:rgba(34,211,238,.22);filter:blur(18px);transform:rotateX(70deg)}.robot-model{position:relative;width:10.5rem;height:15.5rem;transform-style:preserve-3d;animation:robot-float 5s ease-in-out infinite;transition:transform .35s cubic-bezier(.23,1,.32,1)}.robot-model::before{content:'';position:absolute;inset:1.5rem -2rem 1rem;background:linear-gradient(90deg,transparent,rgba(34,211,238,.18),transparent);filter:blur(12px);transform:translateZ(-2rem)}.robot-head{position:absolute;z-index:4;top:0;left:2.35rem;width:5.8rem;height:4.5rem;border:2px solid rgba(165,243,252,.65);border-radius:1.5rem 1.5rem 1.1rem 1.1rem;background:linear-gradient(145deg,#dbeafe 0%,#64748b 24%,#172033 66%,#07111f);box-shadow:inset 0 2px 8px rgba(255,255,255,.75),0 0 25px rgba(34,211,238,.22);transform:translateZ(1.6rem);overflow:hidden}.robot-head::before{content:'';position:absolute;left:.9rem;right:.9rem;top:1.65rem;height:.65rem;border-radius:.8rem;background:linear-gradient(90deg,#22d3ee 0 22%,transparent 22% 36%,#22d3ee 36% 64%,transparent 64% 78%,#22d3ee 78%);box-shadow:0 0 14px #22d3ee}.robot-head::after{content:'SG';position:absolute;right:.55rem;top:.35rem;font:700 .5rem monospace;color:#cffafe;opacity:.85}.robot-neck{position:absolute;top:4rem;left:4.1rem;width:2.5rem;height:1.2rem;background:#1e293b;border:1px solid #67e8f9;border-radius:.35rem;transform:translateZ(1rem)}.robot-torso{position:absolute;z-index:3;top:4.65rem;left:1.55rem;width:7.5rem;height:6.8rem;border:2px solid rgba(148,163,184,.55);border-radius:1.8rem 1.8rem 1rem 1rem;background:linear-gradient(145deg,#cbd5e1,#475569 17%,#172033 55%,#0b1220);box-shadow:inset 0 3px 12px rgba(255,255,255,.45),0 0 28px rgba(14,165,233,.2);transform:translateZ(.8rem)}.robot-torso::before{content:'';position:absolute;left:2.2rem;top:1.6rem;width:3rem;height:3rem;border-radius:50%;border:1px solid #67e8f9;background:radial-gradient(circle,#e0f2fe 0 8%,#22d3ee 10% 18%,#0f172a 20% 65%,#22d3ee 67% 71%,transparent 73%);box-shadow:0 0 22px #22d3ee}.robot-torso::after{content:'';position:absolute;left:1.1rem;right:1.1rem;bottom:.75rem;height:.35rem;border-radius:1rem;background:linear-gradient(90deg,#22d3ee 30%,#a78bfa 30% 65%,#22d3ee 65%);box-shadow:0 0 10px rgba(34,211,238,.7)}.robot-arm{position:absolute;z-index:2;top:5.1rem;width:1.7rem;height:6.8rem;border:1px solid #94a3b8;border-radius:1rem;background:linear-gradient(90deg,#0f172a,#64748b,#111827);box-shadow:0 0 12px rgba(34,211,238,.18)}.robot-arm.left{left:.15rem;transform:rotate(7deg) translateZ(.4rem)}.robot-arm.right{right:.15rem;transform:rotate(-7deg) translateZ(.4rem)}.robot-hand{position:absolute;bottom:-1.1rem;left:.1rem;width:1.5rem;height:1.5rem;border:1px solid #67e8f9;border-radius:.5rem;background:#172033}.robot-hips{position:absolute;z-index:2;top:10.7rem;left:2.4rem;width:5.7rem;height:1.4rem;border-radius:.6rem;background:#334155;border:1px solid #94a3b8;transform:translateZ(.5rem)}.robot-leg{position:absolute;top:11.5rem;width:2rem;height:4rem;border:1px solid #94a3b8;border-radius:.7rem;background:linear-gradient(90deg,#0b1220,#64748b,#111827);box-shadow:0 0 12px rgba(34,211,238,.16)}.robot-leg.left{left:2.5rem}.robot-leg.right{right:2.5rem}.robot-leg::after{content:'';position:absolute;bottom:-.55rem;left:-.35rem;width:2.7rem;height:.75rem;border-radius:.5rem;background:#0b1220;border:1px solid #67e8f9}
-    @keyframes robot-float{0%,100%{transform:translateY(0) rotateY(-8deg)}50%{transform:translateY(-10px) rotateY(8deg)}}
-    .robot-scan::after{content:'';position:absolute;left:-1rem;right:-1rem;top:0;height:2px;background:#67e8f9;box-shadow:0 0 18px 6px rgba(34,211,238,.8);animation:robot-scan 1s ease-out forwards;pointer-events:none}@keyframes robot-scan{from{top:0;opacity:1}to{top:100%;opacity:0}}
-    .robot-realistic{width:min(100%,18rem);height:20rem;border-radius:2rem;overflow:hidden;position:relative;transform:translateZ(0);box-shadow:0 0 45px rgba(34,211,238,.25),inset 0 0 30px rgba(255,255,255,.12);background:#0b1420}.robot-fallback{position:absolute;inset:0;z-index:1;display:grid;place-items:center;align-content:center;gap:.8rem;background:radial-gradient(circle at 50% 35%,rgba(34,211,238,.25),transparent 35%),linear-gradient(145deg,#172033,#07111f);color:#67e8f9;font-size:1.8rem}.robot-fallback span{font:700 1rem monospace;letter-spacing:.18em}.robot-realistic img{width:100%;height:100%;display:block;object-fit:cover;object-position:center 49%;filter:saturate(1.06) contrast(1.04) brightness(.92);transition:transform .35s ease,filter .35s ease}.robot-realistic:hover img,.robot-realistic:focus-within img{transform:scale(1.035);filter:saturate(1.15) contrast(1.08) brightness(1)}.robot-realistic::before{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(115deg,rgba(103,232,249,.2),transparent 34%,transparent 66%,rgba(167,139,250,.2));pointer-events:none}.robot-live-ring{position:absolute;z-index:2;left:50%;bottom:1.2rem;width:5.5rem;height:.35rem;transform:translateX(-50%);border-radius:99px;background:#67e8f9;box-shadow:0 0 18px 5px rgba(34,211,238,.7);opacity:.9}.robot-realistic .robot-scan{position:absolute;z-index:3;inset:0;pointer-events:none}.robot-realistic .robot-scan::after{left:0;right:0;top:10%;opacity:.7}.robot-realistic::after{content:'';position:absolute;z-index:4;left:50%;top:38%;width:3.4rem;height:.28rem;transform:translateX(-50%) scaleY(.35);transform-origin:center;border-radius:999px;background:#bff8ff;box-shadow:0 0 10px 3px rgba(34,211,238,.85);opacity:0;transition:opacity .12s ease,transform .1s ease}.robot-realistic.robot-speaking::after{opacity:.9;transform:translateX(-50%) scaleY(.55)}.robot-realistic.robot-speaking.robot-mouth-open::after{transform:translateX(-50%) scaleY(2.4);box-shadow:0 0 16px 5px rgba(34,211,238,.95)}.robot-realistic + *{pointer-events:none}
-    @media(max-width:760px){.robot-hero{grid-template-columns:1fr;gap:.75rem;padding:1rem;margin-bottom:1.25rem}.robot-copy{text-align:center}.robot-copy p{margin:auto}.robot-status{justify-content:center}.robot-stage{height:17rem;order:-1}.robot-model{transform:scale(.82)}.robot-realistic{width:min(100%,15rem);height:16rem}.robot-stage::before{bottom:.5rem}}
-    @media(prefers-reduced-motion:reduce){.robot-model{animation:none}.robot-model{transition:none}}
-    .tb.active{background:linear-gradient(135deg,rgba(34,211,238,0.2),rgba(14,165,233,0.2));border-color:#22d3ee;color:#22d3ee}
-    .ld span{animation:bounce 1.4s ease-in-out infinite both}
-    .ld span:nth-child(1){animation-delay:-0.32s}
-    .ld span:nth-child(2){animation-delay:-0.16s}
-    @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-    .rp{display:none}
-    .rp.show{display:block;animation:slideUp 0.6s ease-out}
-    @media(max-width:640px){.glass{backdrop-filter:blur(8px)}}
-  </style>
-</head>
-<body class="text-white font-cairo antialiased">
-  <div id="particles" class="fixed inset-0 overflow-hidden pointer-events-none z-0"></div>
-  <div class="relative z-10 min-h-screen flex flex-col">
-    <nav class="glass sticky top-0 z-50 border-b border-white/10">
-      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-            <i class="fas fa-shield-halved text-white text-lg"></i>
-          </div>
-          <div>
-            <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Sentinel-Companion</h1>
-            <p class="text-[10px] text-gray-400 -mt-1">رفيق Sentinel الذكي</p>
-          </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101829" />
+    <title>Sentinel Companion — رفيقك الصوتي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; font-family: Cairo, sans-serif; }
+      body { margin: 0; min-height: 100vh; color: #edf5ff; background: radial-gradient(circle at 86% -12%, #1c5b78 0, transparent 29rem), radial-gradient(circle at 4% 38%, #2c225e 0, transparent 33rem), #101829; }
+      button, select, input { font: inherit; }
+      button { cursor: pointer; }
+      .shell { width: min(100%, 52rem); margin: 0 auto; padding: 1rem 1rem 2rem; }
+      .glass { background: rgba(19, 34, 57, .82); border: 1px solid rgba(139, 220, 255, .15); box-shadow: 0 1.2rem 3.5rem rgba(0, 0, 0, .2); backdrop-filter: blur(16px); }
+      .brand-mark { display: grid; place-items: center; width: 2.8rem; height: 2.8rem; border-radius: .9rem; background: linear-gradient(145deg, #46d8ff, #4461d9); box-shadow: 0 .5rem 1.2rem rgba(52, 194, 255, .27); }
+      .pulse-orbit { position: relative; display: grid; place-items: center; width: 8.5rem; height: 8.5rem; margin: 0 auto; border-radius: 50%; background: radial-gradient(circle, #e9fbff 0 4%, #57d9ff 5% 11%, #152846 12% 48%, transparent 49%); box-shadow: 0 0 0 1px rgba(89, 215, 255, .38), 0 0 3rem rgba(56, 198, 255, .32); }
+      .pulse-orbit::before, .pulse-orbit::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid rgba(96, 218, 255, .35); animation: orbit 3.2s ease-in-out infinite; }
+      .pulse-orbit::before { inset: -.75rem; } .pulse-orbit::after { inset: -1.5rem; animation-delay: -1.6s; }
+      .pulse-orbit i { font-size: 2.3rem; color: #bff5ff; filter: drop-shadow(0 0 .7rem #4fd8ff); }
+      .control { border: 1px solid rgba(135, 215, 255, .2); background: #152744; color: #e7f7ff; border-radius: .7rem; padding: .62rem .75rem; font-size: .78rem; }
+      .control:focus-visible, #companion-input:focus-visible { outline: 2px solid #57d9ff; outline-offset: 2px; }
+      .action { border: 1px solid rgba(105, 225, 255, .35); background: linear-gradient(135deg, #0e9dcc, #4a65dc); color: white; border-radius: .8rem; padding: .75rem 1rem; font-weight: 800; }
+      .action:disabled { opacity: .5; cursor: not-allowed; }
+      #companion-stream { white-space: pre-wrap; min-height: 7rem; line-height: 2; }
+      #toast { transition: opacity .2s ease, transform .2s ease; }
+      #toast[data-open="false"] { opacity: 0; transform: translateY(1rem); pointer-events: none; }
+      @keyframes orbit { 50% { transform: scale(1.07); opacity: .35; } }
+      @media (prefers-reduced-motion: reduce) { .pulse-orbit::before, .pulse-orbit::after { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="flex items-center justify-between gap-3 py-3" aria-label="رأس تطبيق Sentinel">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="brand-mark" aria-hidden="true"><i class="fa-solid fa-wave-square text-xl"></i></div>
+          <div class="min-w-0"><h1 class="m-0 font-extrabold text-base text-cyan-200">Sentinel Companion</h1><p class="m-0 text-[11px] text-slate-400">رفيق صوتي وطقس اختياري</p></div>
         </div>
-        <div class="flex items-center gap-2">
-          <div id="user-badge" class="hidden items-center gap-2">
-            <span class="text-xs text-gray-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-              <i class="fas fa-bolt text-yellow-400 mr-1"></i> Pro
-            </span>
-            <button onclick="logout()" class="text-xs text-red-400 hover:text-red-300 px-2 py-1">خروج</button>
-          </div>
-          <button onclick="showFileManager()" class="text-xs bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-lg border border-purple-400/30 hover:bg-purple-500/30 transition" title="إدارة الملفات وإنشاء ZIP">
-            <i class="fas fa-folder-open mr-1"></i> الملفات
-          </button>
-          <button id="login-btn" onclick="showLoginModal()" class="text-xs bg-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-lg border border-cyan-500/30 hover:bg-cyan-500/30 transition">
-            <i class="fas fa-sign-in-alt mr-1"></i> دخول
-          </button>
-        </div>
-      </div>
-    </nav>
+        <button class="control" id="connection-help" type="button"><i class="fa-solid fa-circle-info ml-1"></i> حالة الخادم</button>
+      </header>
 
-    <div id="login-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div class="glass-s rounded-2xl p-6 w-full max-w-sm mx-4 animate-scale-in">
-        <div class="text-center mb-6">
-          <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/20">
-            <i class="fas fa-shield-halved text-2xl text-cyan-400"></i>
+      <main class="space-y-4">
+        <section class="glass rounded-3xl px-5 py-7 text-center" aria-labelledby="sentinel-title">
+          <div class="pulse-orbit" aria-hidden="true"><i class="fa-solid fa-robot"></i></div>
+          <p class="mt-6 mb-2 text-[11px] tracking-[.2em] text-cyan-300">SENTINEL // VOICE COMPANION</p>
+          <h2 id="sentinel-title" class="m-0 text-2xl font-extrabold">رفيق هادئ يتحدث معك</h2>
+          <p class="mt-3 mb-0 text-sm leading-8 text-slate-300">Sentinel مخصص للمحادثة والصوت والسياق الاختياري، مع تحكم واضح في الخصوصية والصلاحيات.</p>
+        </section>
+
+        <section class="glass rounded-3xl p-4 sm:p-5" aria-labelledby="voice-title">
+          <div class="flex flex-wrap items-center justify-between gap-2"><div><h2 id="voice-title" class="m-0 font-bold"><i class="fa-solid fa-comments text-cyan-300 ml-2"></i>المحادثة الصوتية</h2><p id="service-status" class="mt-1 mb-0 text-xs text-slate-400">تحقق من خادم Sentinel قبل بدء المحادثة.</p></div><span class="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[11px] text-cyan-200">خصوصية أولًا</span></div>
+          <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label class="text-xs text-slate-300">اللغة<select id="companion-locale" class="control mt-1 w-full"><option value="ar-MA">الدارجة المغربية</option><option value="ar">العربية</option><option value="en-US">English</option></select></label>
+            <label class="text-xs text-slate-300">الصوت<select id="companion-voice" class="control mt-1 w-full"><option value="">اختيار تلقائي من الجهاز</option></select></label>
           </div>
-          <h3 class="text-xl font-bold">تسجيل الدخول</h3>
-          <p class="text-sm text-gray-400 mt-1">سجل لتخزين سجل فحوصاتك</p>
-        </div>
-        <div class="space-y-3">
-          <input id="login-email" type="email" placeholder="بريدك الإلكتروني" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none text-sm">
-          <input id="login-password" type="password" placeholder="كلمة المرور" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none text-sm">
-          <button onclick="login()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-sm hover:from-cyan-400 hover:to-blue-500 transition shadow-lg shadow-cyan-500/25 nb">
-            <i class="fas fa-sign-in-alt mr-2"></i> دخول
-          </button>
-          <button onclick="signup()" class="w-full py-3 rounded-xl glass font-bold text-sm hover:bg-white/10 transition">
-            <i class="fas fa-user-plus mr-2"></i> إنشاء حساب
-          </button>
-        </div>
-        <button onclick="hideLoginModal()" class="mt-4 text-xs text-gray-500 hover:text-gray-300 w-full text-center">إغلاق</button>
-      </div>
+          <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><button class="control" id="voice-toggle" type="button" aria-pressed="false">الصوت متوقف</button><button class="control" id="preview-voice" type="button">تجربة الصوت</button><button class="control" id="listen-toggle" type="button" aria-pressed="false">بدء الاستماع</button><button class="control" id="sensor-toggle" type="button" aria-pressed="false">تفعيل الحركة</button></div>
+          <div id="companion-stream" class="mt-4 rounded-2xl border border-white/10 bg-slate-950/35 p-4 text-sm text-slate-200" role="status" aria-live="polite">اكتب رسالة لبدء محادثة Sentinel. لا تُرسل بيانات الموقع أو الصوت إلا بعد إذنك.</div>
+          <div class="mt-3 flex gap-2"><input id="companion-input" class="min-w-0 flex-1 rounded-xl border border-white/10 bg-slate-950/40 px-4 py-3 text-sm text-white placeholder-slate-500" placeholder="اكتب رسالة للرفيق..." autocomplete="off" /><button class="action" id="companion-send" type="button">إرسال</button><button class="control text-red-200" id="companion-stop" type="button" disabled>إيقاف</button></div>
+          <p class="mt-3 mb-0 text-[11px] leading-6 text-slate-500">الصوت والاستماع اختياريان ويعتمدان على دعم الجهاز. لا ينفذ Sentinel أي فعل خارجي دون تأكيد صريح.</p>
+        </section>
+
+        <section class="glass rounded-3xl p-4 sm:p-5" aria-labelledby="context-title">
+          <div class="flex items-center justify-between gap-3"><div><h2 id="context-title" class="m-0 font-bold"><i class="fa-solid fa-cloud-sun text-cyan-300 ml-2"></i>السياق اليومي الاختياري</h2><p class="mt-1 mb-0 text-xs text-slate-400">لا تُحفظ الإحداثيات داخل التطبيق.</p></div><button class="control" id="weather-location" type="button">تحديث الطقس بإذني</button></div>
+          <div class="mt-4 grid grid-cols-2 gap-3"><div class="rounded-2xl bg-slate-950/30 p-3"><p class="m-0 text-xs text-slate-400">الطقس</p><p id="weather-summary" class="mt-2 mb-0 text-sm text-cyan-100">الموقع غير مفعّل</p></div><div class="rounded-2xl bg-slate-950/30 p-3"><p class="m-0 text-xs text-slate-400">الشروق والغروب</p><p id="sun-times" class="mt-2 mb-0 text-sm text-cyan-100">—</p></div></div>
+          <div id="map-panel" class="hidden mt-3 overflow-hidden rounded-2xl border border-cyan-300/15"><iframe id="location-map" class="h-40 w-full border-0" title="خريطة الموقع المؤقتة" loading="lazy" referrerpolicy="no-referrer"></iframe><p id="map-status" class="m-0 px-3 py-2 text-[11px] text-slate-400">تظهر الخريطة في هذه الجلسة فقط.</p></div>
+        </section>
+
+        <section class="glass rounded-3xl p-4 sm:p-5" aria-labelledby="joke-title"><div class="flex items-center justify-between gap-3"><div><h2 id="joke-title" class="m-0 font-bold"><i class="fa-solid fa-flask text-fuchsia-300 ml-2"></i>جرعة علمية خفيفة</h2><p class="mt-1 mb-0 text-xs text-slate-400">نصوص أصلية قصيرة من Sentinel.</p></div><button class="control" id="joke-load" type="button">نكتة جديدة</button></div><p id="joke-text" class="mb-0 mt-4 text-sm leading-8 text-slate-200">اضغط «نكتة جديدة».</p></section>
+      </main>
+      <footer class="px-2 pt-6 text-center text-[11px] text-slate-500">Sentinel Companion · تطوير Abdelati Zarzori</footer>
     </div>
-
-    <div id="file-manager-modal" class="fixed inset-0 z-[65] hidden items-center justify-center bg-black/70 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="file-manager-title">
-      <div class="glass-s rounded-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden animate-scale-in">
-        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-white/10">
-          <div>
-            <h2 id="file-manager-title" class="text-lg font-bold flex items-center gap-2"><i class="fas fa-folder-open text-purple-300"></i> مدير الملفات</h2>
-            <p class="text-xs text-gray-400 mt-1">أضف ملفاتك محليًا وأنشئ ZIP دون رفع تلقائي</p>
-          </div>
-          <button onclick="hideFileManager()" class="w-9 h-9 rounded-lg glass text-gray-400 hover:text-white" aria-label="إغلاق مدير الملفات"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="p-5 space-y-4 overflow-y-auto max-h-[calc(88vh-150px)]">
-          <label for="zip-file-input" class="dz block rounded-xl p-5 text-center cursor-pointer hover:bg-cyan-500/5">
-            <i class="fas fa-file-circle-plus text-2xl text-cyan-400 mb-2"></i>
-            <span class="block text-sm font-semibold">اختر ملفات لإضافتها إلى الحزمة</span>
-            <span class="block text-xs text-gray-500 mt-1">الملفات تبقى داخل المتصفح حتى تضغط تنزيل ZIP</span>
-          </label>
-          <input id="zip-file-input" type="file" multiple class="hidden" onchange="handleZipFiles(event)">
-          <label for="zip-folder-input" class="block rounded-xl border border-purple-400/20 bg-purple-500/5 p-4 text-center cursor-pointer hover:bg-purple-500/10 transition">
-            <i class="fas fa-folder-tree text-xl text-purple-300 mb-1"></i>
-            <span class="block text-sm font-semibold">قراءة مجلد كامل</span>
-            <span class="block text-xs text-gray-500 mt-1">يتم الحفاظ على المسارات الداخلية للمجلد</span>
-          </label>
-          <input id="zip-folder-input" type="file" webkitdirectory directory multiple class="hidden" onchange="handleZipFiles(event)">
-          <div class="flex items-center justify-between text-xs text-gray-400"><span id="zip-file-count">0 ملف</span><button onclick="clearZipFiles()" class="text-red-300 hover:text-red-200">إزالة الكل</button></div>
-          <div id="zip-file-list" class="space-y-2 min-h-20 rounded-xl border border-white/10 bg-black/10 p-3" aria-live="polite">
-            <p class="text-center text-sm text-gray-500 py-5">لم تتم إضافة ملفات بعد</p>
-          </div>
-          <section id="file-editor" class="hidden rounded-xl border border-cyan-400/20 bg-black/20 p-3" aria-labelledby="file-editor-title">
-            <div class="flex items-center justify-between gap-3 mb-2">
-              <h3 id="file-editor-title" class="text-sm font-semibold text-cyan-200 truncate">محرر الملف</h3>
-              <span id="file-editor-status" class="text-[11px] text-gray-500">قراءة محلية</span>
-            </div>
-            <textarea id="file-editor-text" class="ce w-full h-48 rounded-lg p-3 text-sm text-gray-200 resize-y focus:outline-none" spellcheck="false" aria-label="محتوى الملف"></textarea>
-            <div class="flex justify-end gap-2 mt-3">
-              <button onclick="closeFileEditor()" class="px-4 py-2 rounded-lg glass text-xs">إلغاء</button>
-              <button onclick="saveEditedFile()" class="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 text-xs font-semibold">حفظ التعديلات</button>
-            </div>
-          </section>
-        </div>
-        <div class="flex flex-col sm:flex-row gap-3 px-5 py-4 border-t border-white/10">
-          <button onclick="downloadZip()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-500 font-bold text-sm hover:from-purple-400 hover:to-cyan-400 transition nb"><i class="fas fa-file-zipper mr-2"></i> إنشاء وتنزيل ZIP</button>
-          <button onclick="hideFileManager()" class="sm:w-32 py-3 rounded-xl glass text-sm font-semibold hover:bg-white/10">إغلاق</button>
-        </div>
-      </div>
-    </div>
-
-    <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-6 sm:py-10">
-      <section class="robot-hero animate-fade-in" aria-label="واجهة الروبوت المستقبلي">
-        <div id="robot-copy" class="robot-copy">
-          <div class="flex items-center justify-between gap-3"><span class="robot-kicker">SENTINEL // COMPANION CORE</span><button id="robot-locale-toggle" type="button" class="px-3 py-1 rounded-full border border-cyan-400/25 bg-cyan-400/10 text-cyan-200 text-[11px] hover:bg-cyan-400/20 transition" aria-label="Switch robot language">English</button></div>
-          <h2 id="robot-title">روبوتك الذكي، حاضر لفهم كل فكرة</h2>
-          <p id="robot-description">رفيق صوتي مستقبلي يفهم العربية والدارجة المغربية والإنجليزية، يتفاعل معك بصريًا، ويجعل الأفعال الخارجية مشروطة بتأكيدك.</p>
-          <div class="robot-status"><i class="fas fa-circle-nodes"></i><span id="robot-status-text">النواة جاهزة — بانتظار أمرك</span><span class="px-2 py-1 rounded-full bg-cyan-400/10 text-cyan-300 border border-cyan-400/20">AI</span></div>
-        </div>
-        <div id="robot-stage" class="robot-stage" tabindex="0" role="button" aria-label="تفاعل مع الروبوت ثلاثي الأبعاد">
-          <div id="robot-model" class="robot-model robot-realistic" role="img" aria-label="روبوت Sentinel واقعي مستقبلي">
-            <img src="/manus-storage/sentinel-realistic-robot_b66f877f_3a7fd4eb.webp" alt="وجه روبوت Sentinel واقعي بعيون زرقاء مضيئة داخل مختبر مستقبلي" width="720" height="900" loading="eager" fetchpriority="high" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
-            <div class="robot-fallback" hidden aria-hidden="true"><i class="fas fa-robot"></i><span>Sentinel</span></div>
-            <span class="robot-scan" aria-hidden="true"></span><span class="robot-live-ring" aria-hidden="true"></span>
-          </div>
-        </div>
-      </section>
-      <section class="glass-s rounded-2xl p-4 sm:p-6 mb-8" aria-labelledby="companion-title">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-3"><div><h3 id="companion-title" class="font-bold flex items-center gap-2"><i class="fas fa-comments text-cyan-400"></i> رفيق Sentinel الصوتي</h3><p class="text-xs text-gray-400 mt-1">بث مباشر من الخادم — كلام عفوي لكن مضبوط وآمن</p></div><div class="flex flex-wrap items-center gap-2"><select id="companion-locale" class="px-2 py-1.5 rounded-lg border border-cyan-400/20 bg-slate-900/80 text-cyan-100 text-xs" aria-label="لغة الرفيق"><option value="ar-MA">الدارجة المغربية</option><option value="ar">العربية</option><option value="en-US">English</option></select><button id="companion-voice-toggle" type="button" class="px-3 py-1.5 rounded-lg border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-xs" aria-pressed="false">الصوت متوقف</button><select id="companion-voice" class="max-w-40 px-2 py-1.5 rounded-lg border border-cyan-400/20 bg-slate-900/80 text-cyan-100 text-xs" aria-label="صوت الروبوت"><option value="">الصوت الافتراضي</option></select><button id="companion-preview-voice" type="button" class="px-3 py-1.5 rounded-lg border border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-200 text-xs">تجربة الصوت</button><label class="flex items-center gap-1 text-[11px] text-gray-400">سرعة <input id="companion-rate" type="range" min="0.7" max="1.3" step="0.05" value="0.98" class="w-16" aria-label="سرعة الصوت"></label><label class="flex items-center gap-1 text-[11px] text-gray-400">نبرة <input id="companion-pitch" type="range" min="0.7" max="1.3" step="0.05" value="1" class="w-16" aria-label="نبرة الصوت"></label><button id="companion-listen" type="button" class="px-3 py-1.5 rounded-lg border border-violet-400/20 bg-violet-400/10 text-violet-200 text-xs" aria-pressed="false">بدء الاستماع</button><button id="companion-sensors" type="button" class="px-3 py-1.5 rounded-lg border border-amber-400/20 bg-amber-400/10 text-amber-200 text-xs">تفعيل الاهتزاز</button><button id="companion-stop" type="button" class="px-3 py-1.5 rounded-lg border border-red-400/20 bg-red-400/10 text-red-200 text-xs" disabled>إيقاف</button></div></div>
-        <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 mb-3"><div id="companion-stream" class="min-h-20 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-gray-300 leading-8" aria-live="polite">اكتب رسالة لبدء البث المباشر مع الروبوت.</div><aside class="rounded-xl border border-cyan-400/15 bg-cyan-400/5 p-3 min-w-44" aria-live="polite"><div class="flex items-center justify-between gap-2"><span class="text-xs font-semibold text-cyan-200">السياق اليومي</span><i class="fas fa-cloud-sun text-cyan-300"></i></div><p id="weather-summary" class="text-xs text-gray-400 mt-2">الموقع غير مفعّل</p><p id="sun-times" class="text-[11px] text-gray-500 mt-1">الشروق — · الغروب —</p><button id="weather-location" type="button" class="mt-3 w-full px-2 py-1.5 rounded-lg border border-cyan-400/20 text-cyan-200 text-[11px] hover:bg-cyan-400/10">تحديث الطقس بإذني</button></aside></div>
-        <div id="map-panel" class="hidden rounded-xl border border-violet-400/15 bg-violet-400/5 p-3 mb-3"><div class="flex items-center justify-between gap-2 mb-2"><span class="text-xs font-semibold text-violet-200"><i class="fas fa-map-location-dot mr-1"></i>موقعك المأذون</span><a id="map-external-link" class="text-[11px] text-violet-200 hover:text-white" target="_blank" rel="noopener noreferrer">فتح الخريطة</a></div><iframe id="location-map" title="خريطة الموقع المأذون" class="w-full h-40 rounded-lg border border-white/10" loading="lazy" referrerpolicy="no-referrer"></iframe><p id="map-status" class="text-[11px] text-gray-500 mt-2" role="status">تُعرض الخريطة مؤقتًا في الجلسة ولا تُحفظ الإحداثيات.</p></div>
-        <div class="rounded-xl border border-fuchsia-400/15 bg-fuchsia-400/5 p-3 mb-3"><div class="flex flex-wrap items-center justify-between gap-2"><div><span class="text-xs font-semibold text-fuchsia-200"><i class="fas fa-flask mr-1"></i>جرعة علمية مضحكة</span><p class="text-[11px] text-gray-500 mt-1">نكت أصلية خفيفة من مختبر Sentinel الكوميدي</p></div><div class="flex gap-2"><select id="joke-category" class="px-2 py-1.5 rounded-lg border border-fuchsia-400/20 bg-slate-900/80 text-fuchsia-100 text-xs" aria-label="تصنيف النكتة"><option value="all">كل العلوم</option><option value="space">الفضاء</option><option value="code">البرمجة</option><option value="physics">الفيزياء</option><option value="biology">الأحياء</option></select><button id="joke-load" type="button" class="px-3 py-1.5 rounded-lg bg-fuchsia-500/15 border border-fuchsia-300/20 text-fuchsia-100 text-xs">نكتة جديدة</button></div></div><p id="joke-text" class="mt-3 text-sm text-gray-200 leading-7">اضغط «نكتة جديدة» وخلي العلم يضحك معاك.</p><p id="joke-author" class="mt-1 text-[11px] text-gray-500">المؤلف: —</p></div>
-        <div class="flex gap-2 mt-3"><input id="companion-input" class="flex-1 min-w-0 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400" placeholder="تحدث مع الروبوت..." autocomplete="off"><button id="companion-send" type="button" class="px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-sm">إرسال</button></div>
-        <p id="companion-privacy" class="mt-2 text-[11px] text-gray-500">يُرسل النص إلى الخادم فقط عند الضغط على إرسال. الصوت اختياري ويمكن إيقافه فورًا.</p>
-      </section>
-      <div id="welcome-section" class="text-center mb-8 animate-fade-in">
-        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs mb-4">
-          <i class="fas fa-sparkles"></i><span>الإصدار 1.0 — Full-Stack MVP</span>
-        </div>
-        <h2 class="text-2xl sm:text-4xl font-extrabold mb-3 leading-tight">
-          <span class="bg-gradient-to-r from-white via-cyan-200 to-blue-300 bg-clip-text text-transparent">فحص ذكي لأكوادك البرمجية</span>
-        </h2>
-        <p class="text-gray-400 text-sm sm:text-base max-w-lg mx-auto leading-relaxed">
-          اكتشف الثغرات الأمنية، أخطاء الأداء، وتحسينات الجودة في كودك بلمسة واحدة — مدعوم بـ Ollama AI
-        </p>
-      </div>
-
-      <div id="api-status" class="flex justify-center mb-4">
-        <div class="glass rounded-full px-4 py-1.5 flex items-center gap-2 text-xs">
-          <span id="api-dot" class="w-2 h-2 rounded-full bg-gray-500 animate-pulse"></span>
-          <span id="api-text" class="text-gray-400">جاري التحقق من الاتصال...</span>
-        </div>
-      </div>
-
-      <div class="flex justify-center mb-6 animate-slide-up">
-        <div class="glass rounded-xl p-1 flex gap-1">
-          <button onclick="switchTab('upload')" id="tab-upload" class="tb active px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center gap-2">
-            <i class="fas fa-cloud-upload-alt"></i><span>رفع ملف</span>
-          </button>
-          <button onclick="switchTab('paste')" id="tab-paste" class="tb px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 text-gray-400 flex items-center gap-2">
-            <i class="fas fa-code"></i><span>لصق الكود</span>
-          </button>
-          <button onclick="switchTab('history')" id="tab-history" class="tb px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 text-gray-400 flex items-center gap-2">
-            <i class="fas fa-history"></i><span>السجل</span>
-          </button>
-          <button onclick="switchTab('translate')" id="tab-translate" class="tb px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 text-gray-400 flex items-center gap-2">
-            <i class="fas fa-language"></i><span>مترجم Python</span>
-          </button>
-        </div>
-      </div>
-
-      <div id="upload-zone" class="animate-slide-up">
-        <div id="drop-zone" class="dz glass-s rounded-2xl p-8 sm:p-12 text-center cursor-pointer relative overflow-hidden group" onclick="document.getElementById('file-input').click()">
-          <div class="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <div class="relative z-10">
-            <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
-              <i class="fas fa-cloud-upload-alt text-3xl text-cyan-400"></i>
-            </div>
-            <h3 class="text-lg font-bold mb-2">اسحب الملف هنا أو اضغط للرفع</h3>
-            <p class="text-gray-400 text-sm mb-4">يدعم Python, JavaScript, C#, GDScript, Java, Go, PHP, TypeScript</p>
-            <div class="flex flex-wrap justify-center gap-2 text-xs">
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.py</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.js</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.ts</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.cs</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.gd</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.java</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.go</span>
-              <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-400">.php</span>
-            </div>
-          </div>
-          <input type="file" id="file-input" class="hidden" accept=".py,.js,.ts,.cs,.gd,.java,.go,.php,.rb,.cpp,.c,.h" onchange="handleFileSelect(event)">
-        </div>
-        <div class="mt-4 flex flex-wrap justify-center gap-2">
-          <button onclick="loadDemo('safe')" class="px-4 py-2 rounded-lg glass text-xs font-semibold text-green-400 border border-green-500/20 hover:bg-green-500/10 transition flex items-center gap-2"><i class="fas fa-check-circle"></i> تجربة كود آمن</button>
-          <button onclick="loadDemo('vulnerable')" class="px-4 py-2 rounded-lg glass text-xs font-semibold text-red-400 border border-red-500/20 hover:bg-red-500/10 transition flex items-center gap-2"><i class="fas fa-exclamation-triangle"></i> تجربة كود ملغوم</button>
-          <button onclick="loadDemo('slow')" class="px-4 py-2 rounded-lg glass text-xs font-semibold text-yellow-400 border border-yellow-500/20 hover:bg-yellow-500/10 transition flex items-center gap-2"><i class="fas fa-tachometer-alt"></i> تجربة كود بطيء</button>
-        </div>
-      </div>
-
-      <div id="paste-zone" class="hidden animate-slide-up">
-        <div class="glass-s rounded-2xl p-4 sm:p-6">
-          <div class="flex items-center justify-between mb-3">
-            <label class="text-sm font-semibold text-gray-300 flex items-center gap-2"><i class="fas fa-code text-cyan-400"></i>ألصق الكود هنا</label>
-            <select id="language-select" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300 focus:border-cyan-500 focus:outline-none">
-              <option value="python">Python</option><option value="javascript">JavaScript</option>
-              <option value="typescript">TypeScript</option><option value="csharp">C#</option>
-              <option value="gdscript">GDScript</option><option value="java">Java</option>
-              <option value="go">Go</option><option value="php">PHP</option>
-            </select>
-          </div>
-          <textarea id="code-textarea" class="ce w-full h-64 sm:h-80 rounded-xl p-4 text-sm text-gray-300 resize-none focus:outline-none" placeholder="// الصق الكود هنا..." spellcheck="false"></textarea>
-          <div class="flex justify-between items-center mt-3">
-            <span class="text-xs text-gray-500" id="char-count">0 حرف</span>
-            <button onclick="analyzePastedCode()" class="nb px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-sm hover:from-cyan-400 hover:to-blue-500 transition shadow-lg shadow-cyan-500/25 flex items-center gap-2">
-              <i class="fas fa-search"></i> فحص الكود
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div id="translate-zone" class="hidden animate-slide-up">
-        <div class="glass-s rounded-2xl p-4 sm:p-6">
-          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-            <label class="text-sm font-semibold text-gray-300 flex items-center gap-2"><i class="fas fa-language text-cyan-400"></i> مترجم نصوص Python</label>
-            <div class="flex items-center gap-2 text-xs text-gray-400"><select id="translate-direction" class="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-gray-300"><option value="ar-en">العربية ← الإنجليزية</option><option value="en-ar">الإنجليزية ← العربية</option></select><span class="px-2 py-1 rounded bg-cyan-500/10 text-cyan-300">يحافظ على البنية</span></div>
-          </div>
-          <p class="text-xs text-gray-400 mb-4 leading-relaxed">تتم ترجمة التعليقات والسلاسل النصية فقط، بينما تبقى أسماء المتغيرات والكلمات المحجوزة وعلامات Python كما هي.</p>
-          <textarea id="translate-input" class="ce w-full h-64 rounded-xl p-4 text-sm text-gray-300 resize-y focus:outline-none" placeholder="# اكتب كود Python هنا\nprint('مرحبا')" spellcheck="false"></textarea>
-          <div class="flex flex-wrap items-center justify-between gap-3 mt-3"><span id="translate-status" class="text-xs text-gray-500">جاهز؛ سيتم اختيار الخادم أو fallback المحلي حسب الاتصال</span><button onclick="translatePythonCode()" class="nb px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-sm hover:from-cyan-400 hover:to-blue-500 transition flex items-center gap-2"><i class="fas fa-wand-magic-sparkles"></i> ترجمة النصوص</button></div>
-          <p id="translate-mode-warning" class="mt-2 text-[11px] leading-relaxed text-yellow-300/80">لن تُرسل الملفات إلى الخادم إلا عند توفر خدمة الترجمة الخادمة؛ تجنب المفاتيح والأسرار.</p>
-          <div class="mt-4"><div class="flex items-center justify-between mb-2"><span class="text-sm font-semibold text-gray-300">النتيجة</span><button onclick="copyTranslatedCode()" class="text-xs text-cyan-300 hover:text-cyan-200">نسخ النتيجة</button></div><textarea id="translate-output" class="ce w-full h-64 rounded-xl p-4 text-sm text-gray-300 resize-y focus:outline-none" readonly spellcheck="false" aria-label="النص المترجم"></textarea></div>
-        </div>
-      </div>
-
-      <div id="history-zone" class="hidden animate-slide-up">
-        <div class="glass-s rounded-2xl p-4 sm:p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-history text-cyan-400"></i> سجل الفحوصات</h3>
-            <button onclick="loadHistory()" class="text-xs text-cyan-400 hover:text-cyan-300"><i class="fas fa-sync-alt mr-1"></i> تحديث</button>
-          </div>
-          <div id="history-list" class="space-y-3">
-            <div class="text-center py-12 text-gray-500">
-              <i class="fas fa-inbox text-4xl mb-3 opacity-50"></i>
-              <p>سجل دخولك لرؤية سجل فحوصاتك</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="loading-section" class="hidden mt-8">
-        <div class="glass-s rounded-2xl p-8 sm:p-12 text-center">
-          <div class="relative w-24 h-24 mx-auto mb-6">
-            <div class="absolute inset-0 rounded-full border-4 border-cyan-500/20"></div>
-            <div class="absolute inset-0 rounded-full border-4 border-t-cyan-400 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-            <div class="absolute inset-2 rounded-full border-4 border-blue-500/20"></div>
-            <div class="absolute inset-2 rounded-full border-4 border-t-transparent border-r-blue-400 border-b-transparent border-l-transparent animate-spin-slow"></div>
-            <div class="absolute inset-0 flex items-center justify-center"><i class="fas fa-brain text-2xl text-cyan-400 animate-pulse"></i></div>
-          </div>
-          <h3 class="text-xl font-bold mb-2">جاري التحليل الذكي...</h3>
-          <p id="loading-status" class="text-gray-400 text-sm">فحص الثغرات الأمنية</p>
-          <div class="max-w-xs mx-auto mt-6"><div class="h-1.5 bg-white/10 rounded-full overflow-hidden"><div id="loading-progress" class="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-300" style="width:0%"></div></div></div>
-          <div class="flex justify-center gap-4 mt-6 text-xs text-gray-500">
-            <span id="step-1" class="flex items-center gap-1"><i class="fas fa-circle text-[6px] text-cyan-400"></i> الأمان</span>
-            <span id="step-2" class="flex items-center gap-1 opacity-50"><i class="fas fa-circle text-[6px]"></i> الأداء</span>
-            <span id="step-3" class="flex items-center gap-1 opacity-50"><i class="fas fa-circle text-[6px]"></i> الجودة</span>
-            <span id="step-4" class="flex items-center gap-1 opacity-50"><i class="fas fa-circle text-[6px]"></i> التصحيح</span>
-          </div>
-        </div>
-      </div>
-
-      <div id="results-dashboard" class="rp mt-8 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="glass-s rounded-2xl p-5 sm:p-6 text-center relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            <h4 class="text-sm font-semibold text-gray-400 mb-4">🛡️ درجة الأمان</h4>
-            <div class="relative w-28 h-28 mx-auto">
-              <svg class="cp w-full h-full" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-                <circle id="safety-circle" cx="50" cy="50" r="42" fill="none" stroke="url(#gs)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
-                <defs><linearGradient id="gs" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#22d3ee"/><stop offset="100%" style="stop-color:#0ea5e9"/></linearGradient></defs>
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center"><span id="safety-score" class="text-2xl font-extrabold">0%</span></div>
-            </div>
-            <p id="safety-label" class="text-xs mt-2 font-semibold">--</p>
-          </div>
-          <div class="glass-s rounded-2xl p-5 sm:p-6 text-center relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            <h4 class="text-sm font-semibold text-gray-400 mb-4">⚡ الكفاءة</h4>
-            <div class="relative w-28 h-28 mx-auto">
-              <svg class="cp w-full h-full" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-                <circle id="efficiency-circle" cx="50" cy="50" r="42" fill="none" stroke="url(#ge)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
-                <defs><linearGradient id="ge" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#818cf8"/><stop offset="100%" style="stop-color:#6366f1"/></linearGradient></defs>
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center"><span id="efficiency-score" class="text-2xl font-extrabold">0%</span></div>
-            </div>
-            <p id="efficiency-label" class="text-xs mt-2 font-semibold">--</p>
-          </div>
-          <div class="glass-s rounded-2xl p-5 sm:p-6 text-center relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            <h4 class="text-sm font-semibold text-gray-400 mb-4">✨ جودة الكود</h4>
-            <div class="relative w-28 h-28 mx-auto">
-              <svg class="cp w-full h-full" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
-                <circle id="quality-circle" cx="50" cy="50" r="42" fill="none" stroke="url(#gq)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"/>
-                <defs><linearGradient id="gq" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#c084fc"/><stop offset="100%" style="stop-color:#a855f7"/></linearGradient></defs>
-              </svg>
-              <div class="absolute inset-0 flex items-center justify-center"><span id="quality-score" class="text-2xl font-extrabold">0%</span></div>
-            </div>
-            <p id="quality-label" class="text-xs mt-2 font-semibold">--</p>
-          </div>
-        </div>
-
-        <div id="status-banner" class="glass rounded-xl p-4 flex items-center gap-4 animate-scale-in">
-          <div id="status-icon" class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"></div>
-          <div class="flex-1"><h3 id="status-title" class="font-bold text-lg"></h3><p id="status-desc" class="text-sm text-gray-400"></p></div>
-          <div id="status-badge" class="px-4 py-2 rounded-lg text-sm font-bold"></div>
-        </div>
-
-        <div class="glass-s rounded-2xl p-5 sm:p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-exclamation-circle text-yellow-400"></i> المشاكل المكتشفة <span id="issues-count" class="text-xs bg-white/10 px-2 py-0.5 rounded-full text-gray-400">0</span></h3>
-            <div class="flex gap-2">
-              <button onclick="filterIssues('all')" class="if active px-3 py-1 rounded-lg text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">الكل</button>
-              <button onclick="filterIssues('critical')" class="if px-3 py-1 rounded-lg text-xs bg-white/5 text-gray-400 border border-white/10 hover:bg-red-500/10">حرجة</button>
-              <button onclick="filterIssues('warning')" class="if px-3 py-1 rounded-lg text-xs bg-white/5 text-gray-400 border border-white/10 hover:bg-yellow-500/10">تحذير</button>
-              <button onclick="filterIssues('info')" class="if px-3 py-1 rounded-lg text-xs bg-white/5 text-gray-400 border border-white/10 hover:bg-blue-500/10">ملاحظة</button>
-            </div>
-          </div>
-          <div id="issues-list" class="space-y-3"></div>
-        </div>
-
-        <div class="glass-s rounded-2xl p-5 sm:p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-robot text-cyan-400"></i> 🤖 التصحيح الذكي</h3>
-            <button onclick="copyFixCode()" class="px-3 py-1.5 rounded-lg glass text-xs text-gray-400 hover:text-white hover:bg-white/10 transition flex items-center gap-2"><i class="fas fa-copy"></i> نسخ</button>
-          </div>
-          <div class="bg-[#0d1117] rounded-xl border border-white/10 overflow-hidden">
-            <div class="flex items-center gap-2 px-4 py-2 bg-white/5 border-b border-white/10"><div class="w-3 h-3 rounded-full bg-red-500/80"></div><div class="w-3 h-3 rounded-full bg-yellow-500/80"></div><div class="w-3 h-3 rounded-full bg-green-500/80"></div><span class="text-xs text-gray-500 mr-2">fixed_code.py</span></div>
-            <pre id="fix-code" class="p-4 text-sm overflow-x-auto text-green-400 font-mono leading-relaxed" dir="ltr"><code class="language-python"></code></pre>
-          </div>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3">
-          <button onclick="resetApp()" class="flex-1 py-3.5 rounded-xl glass font-bold text-sm hover:bg-white/10 transition flex items-center justify-center gap-2"><i class="fas fa-redo"></i> فحص ملف آخر</button>
-          <button onclick="downloadReport()" class="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-sm hover:from-cyan-400 hover:to-blue-500 transition shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 nb"><i class="fas fa-file-pdf"></i> تحميل التقرير</button>
-        </div>
-      </div>
-    </main>
-
-    <footer class="glass border-t border-white/10 mt-8">
-      <div class="max-w-6xl mx-auto px-4 py-4 text-center">
-        <p class="text-xs text-gray-500">
-          &copy; 2026 Sentinel-Companion. Developed by <strong class="text-cyan-400">Abdelati Zarzori</strong>. All rights reserved.
-        </p>
-      </div>
-    </footer>
-  </div>
-
-  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl glass-s border border-cyan-500/30 text-sm font-semibold transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
-    <i class="fas fa-check-circle text-cyan-400"></i><span id="toast-message">تم بنجاح!</span>
-  </div>
-
-  <script src="app.js?v=map-status-1"></script>
-</body>
+    <div id="toast" data-open="false" class="fixed bottom-5 left-4 right-4 mx-auto max-w-md rounded-xl border border-cyan-300/20 bg-slate-900/95 px-4 py-3 text-center text-sm shadow-2xl" role="alert"></div>
+    <script src="app.js"></script>
+  </body>
 </html>
