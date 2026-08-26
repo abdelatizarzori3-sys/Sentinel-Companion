@@ -35,3 +35,7 @@ cd android
 ينتج ملف النشر عادةً في `android/app/build/outputs/bundle/release/app-release.aab`.
 
 هذا الغلاف لا يضع أسرار الخادم في التطبيق. أي مفتاح ذكاء اصطناعي يجب أن يبقى على الخادم فقط.
+
+## Developer
+
+**Abdelati Zarzori** — `abdelatizarzori3@gmail.com`

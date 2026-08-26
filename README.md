@@ -79,3 +79,7 @@ node --check server.mjs
 ## الترخيص
 
 أضف ملف ترخيص قبل إعادة التوزيع العام.
+
+## معلومات المطوّر
+
+**Abdelati Zarzori** — المطوّر الرئيسي ومالك المنتج. للتواصل: `abdelatizarzori3@gmail.com`.
