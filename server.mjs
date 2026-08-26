@@ -1,4 +1,7 @@
 import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const port = Number(process.env.PORT || 3000);
 const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
@@ -8,6 +11,16 @@ const model = process.env.LLM_MODEL || 'gpt-5-mini';
 const streamWindowMs = 60_000;
 const streamLimit = 10;
 const streamClients = new Map();
+const rootDir = fileURLToPath(new URL('.', import.meta.url));
+const contentTypes = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
+
+async function serveFrontend(req, res) {
+  if (req.method !== 'GET') return false;
+  const requested = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  const filePath = normalize(join(rootDir, requested));
+  if (!filePath.startsWith(rootDir) || filePath === rootDir) return false;
+  try { const body = await readFile(filePath); res.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream', 'Cache-Control': requested === '/index.html' ? 'no-cache' : 'public, max-age=3600' }); res.end(body); return true; } catch { return false; }
+}
 
 function clientKey(req) { return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim(); }
 function rateLimit(req, res) { const key = clientKey(req); const now = Date.now(); const current = streamClients.get(key); if (!current || current.resetAt <= now) { streamClients.set(key, { count: 1, resetAt: now + streamWindowMs }); return true; } if (current.count >= streamLimit) { const retryAfter = Math.ceil((current.resetAt - now) / 1000); res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Retry-After': String(retryAfter), 'Access-Control-Allow-Origin': allowedOrigin, Vary: 'Origin' }); res.end(JSON.stringify({ error: 'Too many stream requests', retryAfter })); return false; } current.count += 1; return true; }
@@ -61,6 +74,7 @@ const analysisSchema = {
 
 async function route(req, res) {
   if (req.method === 'OPTIONS') return json(res, 204, {});
+  if (!req.url.startsWith('/api/') && await serveFrontend(req, res)) return;
   if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true, llmConfigured: Boolean(llmBase && llmKey), model });
   if (req.method !== 'POST' || !['/api/analyze', '/api/translate', '/api/chat/stream'].includes(req.url)) return json(res, 404, { error: 'Not found' });
   try {
