@@ -10,6 +10,12 @@ const Companion = {
 
 const $ = id => document.getElementById(id);
 
+function setRobotState(state = 'idle', label = 'جاهز للتفاعل') {
+  const stage = $('robot-stage'); const caption = $('robot-state-label');
+  if (stage) stage.dataset.state = state;
+  if (caption) caption.textContent = label;
+}
+
 function showToast(message, kind = 'info') {
   const toast = $('toast');
   if (!toast) return;
@@ -55,6 +61,9 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   const voice = chosenVoice();
   if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = Companion.locale;
+  utterance.onstart = () => setRobotState('speaking', 'Sentinel يتحدث الآن');
+  utterance.onend = () => setRobotState('idle', 'جاهز للتفاعل');
+  utterance.onerror = () => setRobotState('idle', 'جاهز للتفاعل');
   window.speechSynthesis.speak(utterance);
 }
 
@@ -78,7 +87,7 @@ async function sendMessage() {
     return showToast('المحادثة تحتاج خادم Sentinel منشورًا.', 'error');
   }
   input.value = ''; Companion.messages.push({ role: 'user', content });
-  output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false;
+  output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false; setRobotState('thinking', 'Sentinel يفكر في رد مناسب');
   Companion.controller = new AbortController();
   try {
     const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
@@ -92,12 +101,13 @@ async function sendMessage() {
     Companion.messages.push({ role: 'assistant', content: answer.trim() }); speak(answer.trim());
   } catch (error) {
     if (error.name !== 'AbortError') { output.textContent = 'تعذر الاتصال بخادم Sentinel. لم تُعرض إجابة تجريبية.'; showToast('تعذر الاتصال بالخادم.', 'error'); }
-  } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; }
+  } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; if (!Companion.voiceEnabled) setRobotState('idle', 'جاهز للتفاعل'); }
 }
 
 function stopStream() {
   Companion.controller?.abort(); Companion.controller = null;
   window.speechSynthesis?.cancel();
+  setRobotState('idle', 'تم إيقاف الاستجابة');
   $('companion-stop').disabled = true; $('companion-send').disabled = false;
 }
 
@@ -182,10 +192,10 @@ async function toggleNativeListening(plugin) {
   const button = $('listen-toggle');
   if (Companion.listening) {
     try { await plugin.stop(); } catch { /* The recognizer may already have stopped. */ }
-    Companion.listening = false; button.textContent = 'بدء الاستماع'; return;
+    Companion.listening = false; button.textContent = 'بدء الاستماع'; setRobotState('idle', 'تم إيقاف الاستماع'); return;
   }
   if (!await ensureNativeMicrophonePermission(plugin)) return;
-  Companion.listening = true; button.textContent = 'إيقاف الاستماع';
+  Companion.listening = true; button.textContent = 'إيقاف الاستماع'; setRobotState('listening', 'أستمع إليك الآن…');
   try {
     const result = await plugin.start({ language: Companion.locale });
     const text = result?.text?.trim();
@@ -198,7 +208,7 @@ async function toggleNativeListening(plugin) {
     else if (reason.includes('RECOGNITION_NETWORK_ERROR')) showToast('تعذر الوصول لخدمة التعرف الصوتي. تحقق من الإنترنت ثم حاول مجددًا.', 'info');
     else if (!reason.includes('NO_SPEECH') && !reason.includes('RECOGNITION_CANCELLED')) showToast('تعذر التقاط الصوت الآن. يمكنك متابعة المحادثة بالكتابة.', 'info');
   } finally {
-    Companion.listening = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission();
+    Companion.listening = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission(); if (!Companion.voiceEnabled) setRobotState('idle', 'جاهز للتفاعل');
   }
 }
 
@@ -207,7 +217,7 @@ function toggleListening() {
   if (nativePlugin) return toggleNativeListening(nativePlugin);
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) return showToast('الاستماع الصوتي غير مدعوم هنا. اكتب رسالتك وسيجيب Sentinel مباشرة.', 'info');
-  if (Companion.listening) { Companion.listening = false; Companion.recognition?.stop(); $('listen-toggle').textContent = 'بدء الاستماع'; return; }
+  if (Companion.listening) { Companion.listening = false; Companion.recognition?.stop(); $('listen-toggle').textContent = 'بدء الاستماع'; setRobotState('idle', 'تم إيقاف الاستماع'); return; }
   if (!navigator.mediaDevices?.getUserMedia) return showToast('لا تتوفر واجهة الميكروفون في هذا الجهاز. استخدم الكتابة للمحادثة.', 'info');
   navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
     stream.getTracks().forEach(track => track.stop());
@@ -220,7 +230,7 @@ function startRecognition(Recognition) {
   recognition.onresult = event => { const text = event.results[0]?.[0]?.transcript?.trim(); if (text) { $('companion-input').value = text; sendMessage(); } };
   recognition.onerror = () => showToast('تعذر تشغيل الاستماع. يمكنك متابعة المحادثة بالكتابة.', 'info');
   recognition.onend = () => { Companion.listening = false; $('listen-toggle').textContent = 'بدء الاستماع'; };
-  Companion.recognition = recognition; Companion.listening = true; recognition.start(); $('listen-toggle').textContent = 'إيقاف الاستماع';
+  Companion.recognition = recognition; Companion.listening = true; recognition.start(); $('listen-toggle').textContent = 'إيقاف الاستماع'; setRobotState('listening', 'أستمع إليك الآن…');
 }
 
 function updateVoiceCapability() {
@@ -254,7 +264,7 @@ function onMotion(event) {
 }
 
 function init() {
-  updateServiceStatus(); updateVoiceCapability(); refreshMicrophonePermission(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+  setRobotState('idle', 'جاهز للتفاعل'); updateServiceStatus(); updateVoiceCapability(); refreshMicrophonePermission(); loadVoices(); window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
   $('connection-help').addEventListener('click', () => showToast(CONFIG.apiBase ? `الخادم المحدد: ${CONFIG.apiBase}` : 'لا يوجد خادم Sentinel محدد في هذه النسخة.', CONFIG.apiBase ? 'info' : 'error'));
   $('companion-send').addEventListener('click', sendMessage); $('companion-stop').addEventListener('click', stopStream);
   $('companion-input').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); sendMessage(); } });
