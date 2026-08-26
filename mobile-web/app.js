@@ -134,7 +134,36 @@ function loadJoke() {
   $('joke-text').textContent = text; speak(text);
 }
 
+function nativeRecognitionPlugin() {
+  return window.Capacitor?.Plugins?.NativeSpeechRecognition || null;
+}
+
+async function toggleNativeListening(plugin) {
+  const button = $('listen-toggle');
+  if (Companion.listening) {
+    try { await plugin.stop(); } catch { /* The recognizer may already have stopped. */ }
+    Companion.listening = false; button.textContent = 'بدء الاستماع'; return;
+  }
+  Companion.listening = true; button.textContent = 'إيقاف الاستماع';
+  try {
+    const result = await plugin.start({ language: Companion.locale });
+    const text = result?.text?.trim();
+    if (text) { $('companion-input').value = text; await sendMessage(); }
+    else showToast('لم تُلتقط كلمات واضحة. حاول التحدث مرة أخرى أو اكتب رسالتك.', 'info');
+  } catch (error) {
+    const reason = String(error?.message || error);
+    if (reason.includes('MICROPHONE_PERMISSION_DENIED')) showToast('لم يُمنح إذن الميكروفون. يمكنك متابعة المحادثة بالكتابة.', 'info');
+    else if (reason.includes('RECOGNITION_UNAVAILABLE')) showToast('خدمة التعرف الصوتي غير متاحة على الجهاز حاليًا. اكتب رسالتك أو فعّل خدمة التعرف في إعدادات الهاتف.', 'info');
+    else if (reason.includes('RECOGNITION_NETWORK_ERROR')) showToast('تعذر الوصول لخدمة التعرف الصوتي. تحقق من الإنترنت ثم حاول مجددًا.', 'info');
+    else if (!reason.includes('NO_SPEECH')) showToast('تعذر التقاط الصوت الآن. يمكنك متابعة المحادثة بالكتابة.', 'info');
+  } finally {
+    Companion.listening = false; button.textContent = 'بدء الاستماع';
+  }
+}
+
 function toggleListening() {
+  const nativePlugin = nativeRecognitionPlugin();
+  if (nativePlugin) return toggleNativeListening(nativePlugin);
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!Recognition) return showToast('الاستماع الصوتي غير مدعوم هنا. اكتب رسالتك وسيجيب Sentinel مباشرة.', 'info');
   if (Companion.listening) { Companion.listening = false; Companion.recognition?.stop(); $('listen-toggle').textContent = 'بدء الاستماع'; return; }
@@ -154,8 +183,15 @@ function startRecognition(Recognition) {
 }
 
 function updateVoiceCapability() {
+  const nativePlugin = nativeRecognitionPlugin();
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const listen = $('listen-toggle'); const fallback = $('voice-fallback');
+  if (nativePlugin) {
+    listen.disabled = false;
+    listen.textContent = 'بدء الاستماع';
+    fallback.textContent = 'يستخدم Sentinel خدمة التعرف الصوتي الأصلية في Android. سيطلب الإذن مرة واحدة عند بدء الاستماع؛ تبقى المحادثة النصية متاحة دائمًا.';
+    return;
+  }
   if (!Recognition) {
     listen.disabled = true;
     listen.textContent = 'الاستماع غير مدعوم';
