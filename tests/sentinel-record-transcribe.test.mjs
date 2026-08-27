@@ -45,6 +45,7 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.doesNotMatch(tts, /openTtsSettings/);
   assert.match(app, /function requestGeminiSpeech/);
   assert.match(app, /durationMs/);
-  assert.match(generatedAudio, /MediaPlayer/);
+  assert.match(generatedAudio, /AudioTrack/);
+  assert.match(generatedAudio, /WRITE_BLOCKING/);
   assert.match(generatedAudio, /AUDIO_PLAYBACK_ERROR/);
 });

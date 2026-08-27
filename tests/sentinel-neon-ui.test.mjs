@@ -7,10 +7,16 @@ const root = resolve(import.meta.dirname, '..');
 const html = readFileSync(resolve(root, 'mobile-web/index.html'), 'utf8');
 const script = readFileSync(resolve(root, 'mobile-web/app.js'), 'utf8');
 
-test('Sentinel exposes a robot-only voice experience with direct start and stop controls', () => {
+test('Sentinel presents an interactive future-museum robot with direct voice controls', () => {
   assert.match(html, /sentinel-neon-3d-robot_04ad6455\.png/);
   assert.match(html, /id="robot-stage"/);
   assert.match(html, /lip-sync/);
+  assert.match(html, /museum-floor/);
+  assert.match(html, /plinth/);
+  assert.match(html, /EXHIBIT 01/);
+  assert.match(html, /id="chat-log"/);
+  assert.match(html, /id="chat-input"/);
+  assert.match(html, /id="chat-send"/);
   assert.match(html, /id="voice-start"/);
   assert.match(html, /id="voice-stop"/);
   assert.doesNotMatch(html, /id="call-toggle"/);
@@ -21,6 +27,8 @@ test('Sentinel exposes a robot-only voice experience with direct start and stop 
   assert.match(script, /function setRobotState/);
   assert.match(script, /function beginVoiceSession/);
   assert.match(script, /function stopVoiceSession/);
+  assert.match(script, /function sendChatMessage/);
+  assert.match(script, /function appendChatMessage/);
   assert.match(script, /setRobotState\('listening'/);
   assert.match(script, /setRobotState\('thinking'/);
   assert.match(script, /setRobotState\('speaking'/);

@@ -24,6 +24,25 @@ function setVoiceControls(active) {
   if (stop) stop.disabled = !active;
 }
 
+function appendChatMessage(role, text) {
+  const log = $('chat-log');
+  if (!log || !text) return;
+  const message = document.createElement('p');
+  message.className = `chat-message chat-message--${role}`;
+  message.textContent = text;
+  log.appendChild(message);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setChatBusy(busy) {
+  const input = $('chat-input');
+  const send = $('chat-send');
+  const abort = $('chat-abort');
+  if (input) input.disabled = busy;
+  if (send) send.disabled = busy;
+  if (abort) abort.disabled = !busy;
+}
+
 function nativeRecorder() {
   return window.Capacitor?.Plugins?.NativeAudioRecorder || null;
 }
@@ -92,7 +111,7 @@ async function requestReply(messages, signal) {
 async function requestGeminiSpeech(text, signal) {
   const { status, payload } = await postSentinel('speech', { text: text.slice(0, 140), locale: Companion.locale }, signal);
   const audio = payload?.[0]?.result?.data?.json;
-  if (status < 200 || status >= 300 || typeof audio?.audioBase64 !== 'string' || audio.mimeType !== 'audio/wav') throw new Error(payload?.[0]?.error?.json?.message || 'GEMINI_SPEECH_FAILED');
+  if (status < 200 || status >= 300 || typeof audio?.audioBase64 !== 'string' || audio.mimeType !== 'audio/pcm') throw new Error(payload?.[0]?.error?.json?.message || 'GEMINI_SPEECH_FAILED');
   return audio;
 }
 
@@ -101,7 +120,7 @@ async function speakReply(text, signal) {
   if (!player?.play) throw new Error('AUDIO_PLAYER_UNAVAILABLE');
   setRobotState('speaking', 'Sentinel كيهضر دابا');
   const audio = await requestGeminiSpeech(text, signal);
-  const result = await player.play(audio);
+  const result = await player.play({ audioBase64: audio.audioBase64, sampleRate: audio.sampleRate || 24000 });
   if (!result?.started) throw new Error('AUDIO_NOT_STARTED');
   return new Promise(resolve => {
     Companion.speechResolve = resolve;
@@ -111,7 +130,7 @@ async function speakReply(text, signal) {
 }
 
 async function beginVoiceSession() {
-  if (Companion.active || Companion.turnInProgress) return;
+  if (Companion.active || Companion.turnInProgress || Companion.controller) return;
   const recorder = nativeRecorder();
   if (!recorder || !CONFIG.apiBase) {
     setRobotState('error', 'مسار الصوت داخل التطبيق غير جاهز. أعد فتح النسخة الجديدة.');
@@ -159,10 +178,12 @@ async function runVoiceTurn() {
     const text = await requestTranscription(recording, Companion.controller.signal);
     if (!Companion.active) return;
     Companion.messages.push({ role: 'user', content: text });
+    appendChatMessage('user', text);
     setRobotState('thinking', 'Sentinel كيفكّر…');
     const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
     if (!Companion.active) return;
     Companion.messages.push({ role: 'assistant', content: reply });
+    appendChatMessage('assistant', reply);
     await speakReply(reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
@@ -197,15 +218,48 @@ async function stopVoiceSession() {
   }
   Companion.recording = false;
   nativeGeneratedAudio()?.stop?.().catch(() => {});
+  setChatBusy(false);
   setVoiceControls(false);
-  setRobotState('idle', 'تم الإيقاف. اضغط النقطة الخضراء للحديث');
+  setRobotState('idle', 'تم الإيقاف. تقدر تهضر أو تكتب للروبوت');
+}
+
+async function sendChatMessage(event) {
+  event?.preventDefault();
+  const input = $('chat-input');
+  const text = input?.value.trim();
+  if (!text || Companion.controller) return;
+  if (Companion.active) await stopVoiceSession();
+  input.value = '';
+  Companion.messages.push({ role: 'user', content: text });
+  appendChatMessage('user', text);
+  setChatBusy(true);
+  setRobotState('thinking', 'Sentinel كيفكّر فجوابك…');
+  Companion.controller = new AbortController();
+  try {
+    const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
+    Companion.messages.push({ role: 'assistant', content: reply });
+    appendChatMessage('assistant', reply);
+    await speakReply(reply, Companion.controller.signal);
+  } catch (error) {
+    if (error?.name !== 'AbortError') {
+      appendChatMessage('system', 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.');
+      setRobotState('error', 'تعذر إكمال الجواب.');
+    }
+  } finally {
+    Companion.controller = null;
+    setChatBusy(false);
+    if (!Companion.active) setRobotState('idle', 'تقدر تكتب أو تهضر مع Sentinel');
+  }
 }
 
 function init() {
   setRobotState();
   setVoiceControls(false);
+  setChatBusy(false);
   $('voice-start')?.addEventListener('click', beginVoiceSession);
   $('voice-stop')?.addEventListener('click', stopVoiceSession);
+  $('chat-form')?.addEventListener('submit', sendChatMessage);
+  $('chat-abort')?.addEventListener('click', stopVoiceSession);
 }
 
 document.addEventListener('DOMContentLoaded', init);
