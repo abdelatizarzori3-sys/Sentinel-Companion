@@ -22,5 +22,8 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(app, /NativeTextToSpeech/);
   assert.match(app, /function isNativeAndroid/);
   assert.match(app, /مسجل Sentinel الأصلي غير جاهز/);
+  assert.match(app, /function requestSentinelReply/);
+  assert.match(app, /credentials: 'omit'/);
+  assert.match(app, /خادم Sentinel لم يرد الآن/);
   assert.match(tts, /TextToSpeech/);
 });

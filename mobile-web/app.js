@@ -102,6 +102,30 @@ function weatherContext() {
   return Companion.weather;
 }
 
+const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+async function requestSentinelReply(messages, signal) {
+  let lastError = new Error('SENTINEL_REPLY_UNAVAILABLE');
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
+        method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal,
+        body: JSON.stringify({ 0: { json: { messages, locale: Companion.locale, context: weatherContext() } } }),
+      });
+      const payload = await response.json().catch(() => null);
+      const reply = payload?.[0]?.result?.data?.json?.reply;
+      if (response.ok && typeof reply === 'string' && reply.trim()) return reply.trim();
+      lastError = new Error(payload?.[0]?.error?.json?.message || `HTTP_${response.status}`);
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error;
+      lastError = error instanceof Error ? error : lastError;
+    }
+    if (attempt === 0) await pause(450);
+  }
+  throw lastError;
+}
+
 async function sendMessage() {
   const input = $('companion-input'); const output = $('companion-stream'); const send = $('companion-send'); const stop = $('companion-stop');
   const content = input?.value.trim();
@@ -114,17 +138,17 @@ async function sendMessage() {
   output.textContent = 'Sentinel يفكر…'; send.disabled = true; stop.disabled = false; setRobotState('thinking', 'Sentinel يفكر في رد مناسب'); setVoiceStage('reply', 'وصل النص إلى Sentinel؛ يجري إعداد الرد الآن.');
   Companion.controller = new AbortController();
   try {
-    const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: Companion.controller.signal,
-      body: JSON.stringify({ 0: { json: { messages: Companion.messages.slice(-12), locale: Companion.locale, context: weatherContext() } } }),
-    });
-    const payload = await response.json();
-    const answer = payload?.[0]?.result?.data?.json?.reply;
-    if (!response.ok || typeof answer !== 'string' || !answer.trim()) throw new Error(`الخادم أعاد ${response.status}`);
-    output.textContent = answer.trim();
-    Companion.messages.push({ role: 'assistant', content: answer.trim() }); speak(answer.trim());
+    const answer = await requestSentinelReply(Companion.messages.slice(-12), Companion.controller.signal);
+    output.textContent = answer;
+    Companion.messages.push({ role: 'assistant', content: answer }); speak(answer);
   } catch (error) {
-    if (error.name !== 'AbortError') { output.textContent = 'تعذر الاتصال بخادم Sentinel. لم تُعرض إجابة تجريبية.'; setVoiceStage('error', 'توقف عند مرحلة الرد من الخادم.'); showToast('تعذر الاتصال بالخادم.', 'error'); }
+    if (error.name !== 'AbortError') {
+      const statusReply = 'سمعت رسالتك، ولكن خادم Sentinel لم يرد الآن. سأبقى جاهزًا؛ جرّب مرة أخرى بعد لحظات أو اكتب رسالتك.';
+      output.textContent = statusReply;
+      setVoiceStage('speaking', 'الخادم تعذر مؤقتًا؛ Sentinel ينطق حالة الاتصال بوضوح.');
+      showToast('تعذر الاتصال بالخادم بعد محاولتين. نطقت لك حالة الاتصال بدل الصمت.', 'error');
+      speak(statusReply);
+    }
   } finally { Companion.controller = null; send.disabled = false; stop.disabled = true; if (!Companion.voiceEnabled) { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); } }
 }
 
