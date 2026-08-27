@@ -29,7 +29,7 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /function isNativeAndroid/);
   assert.match(app, /function requestReply/);
-  assert.match(app, /const BUILD_ID = 'BRAIN-BRIDGE-20260827\.2'/);
+  assert.match(app, /const BUILD_ID = 'BRAIN-BRIDGE-20260827\.3'/);
   assert.match(app, /function createTraceId/);
   assert.match(app, /function knowledgeLabel/);
   assert.match(app, /function displayReply/);
@@ -38,9 +38,13 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /traceId/);
   assert.match(app, /function requestGeminiSpeech/);
   assert.match(app, /function trySpeakReply/);
-  assert.match(app, /الجواب مكتوب، ولكن الصوت ما قدرش يبدا دابا/);
+  assert.match(app, /function speakAndroidFallback/);
+  assert.match(app, /function nativeTextToSpeech/);
+  assert.match(app, /الصوت البديل كينطق نفس الرد/);
+  assert.match(app, /الجواب مكتوب، ولكن ما لقيناش صوت متاح دابا/);
   assert.match(app, /voice\.sentinelSpeech/);
   assert.match(app, /NativeGeneratedAudio/);
+  assert.match(app, /NativeTextToSpeech/);
   assert.match(app, /SERVER_TIMEOUT/);
   assert.match(app, /Sentinel كيحضّر الصوت/);
   assert.match(app, /const REPLY_TIMEOUT_MS = 45_000/);

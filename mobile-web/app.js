@@ -2,7 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'BRAIN-BRIDGE-20260827.2';
+const BUILD_ID = 'BRAIN-BRIDGE-20260827.3';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -88,6 +88,10 @@ function nativeRecorder() {
 
 function nativeGeneratedAudio() {
   return window.Capacitor?.Plugins?.NativeGeneratedAudio || null;
+}
+
+function nativeTextToSpeech() {
+  return window.Capacitor?.Plugins?.NativeTextToSpeech || null;
 }
 
 function nativeTransport() {
@@ -238,15 +242,35 @@ async function speakReply(text, signal) {
   });
 }
 
+async function speakAndroidFallback(text) {
+  const tts = nativeTextToSpeech();
+  if (!tts?.speak) throw new Error('ANDROID_TTS_UNAVAILABLE');
+  setRobotState('thinking', 'الصوت البديل كيحضّر نفس الجواب…');
+  const result = await tts.speak({ text: text.slice(0, 280), locale: Companion.locale });
+  if (!result?.started) throw new Error('ANDROID_TTS_NOT_STARTED');
+  setRobotState('speaking', 'Sentinel كيهضر بالصوت المتاح فالهاتف');
+  setKnowledgeStatus('الجواب وصل · الصوت البديل كينطق نفس الرد');
+  return new Promise(resolve => {
+    Companion.speechResolve = resolve;
+    window.clearTimeout(Companion.speechTimer);
+    Companion.speechTimer = window.setTimeout(() => { Companion.speechResolve = null; resolve(true); }, Number(result.estimatedDurationMs) || 1800);
+  });
+}
+
 async function trySpeakReply(text, signal) {
   try {
     await speakReply(text, signal);
     return true;
   } catch (error) {
     if (error?.name === 'AbortError') throw error;
-    appendChatMessage('system', 'الجواب مكتوب، ولكن الصوت ما قدرش يبدا دابا.');
-    setRobotState('idle', 'الجواب وصل. تقدر تكمل الدردشة أو تعاود تجرب الصوت.');
-    return false;
+    try {
+      await speakAndroidFallback(text);
+      return true;
+    } catch {
+      appendChatMessage('system', 'الجواب مكتوب، ولكن ما لقيناش صوت متاح دابا.');
+      setRobotState('idle', 'الجواب وصل. تقدر تكمل الدردشة أو تعاود تجرب الصوت.');
+      return false;
+    }
   }
 }
 
@@ -342,6 +366,7 @@ async function stopVoiceSession() {
   }
   Companion.recording = false;
   nativeGeneratedAudio()?.stop?.().catch(() => {});
+  nativeTextToSpeech()?.stop?.().catch(() => {});
   setChatBusy(false);
   setVoiceControls(false);
   setRobotState('idle', 'تم الإيقاف. تقدر تهضر أو تكتب للروبوت');
