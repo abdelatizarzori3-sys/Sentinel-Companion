@@ -2,13 +2,13 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'LOCAL-ARABIC-20260827.4';
+const BUILD_ID = 'LISTEN-BRIDGE-20260827.5';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
 };
 
-const TURN_DURATION_MS = 4800;
+const TURN_DURATION_MS = 6500;
 const REPLY_TIMEOUT_MS = 45_000;
 const NATIVE_REPLY_TIMEOUT_MS = 42_000;
 const LOCAL_LIBRARY_DEADLINE_MS = 15_000;
@@ -193,6 +193,17 @@ async function requestReply(messages, signal) {
     setKnowledgeStatus(`جواب فوري · مكتبة Android الداخلية · TRACE ${traceId.slice(-6)}`);
     return result;
   }
+  const localLibraryReply = window.SentinelLocalLibrary?.answer?.(latestMessage);
+  if (localLibraryReply?.reply && localLibraryReply.localMatch) {
+    const result = {
+      ...localLibraryReply,
+      knowledge: { mode: 'internal', fresh: false, local: true, sources: ['مكتبة Android الداخلية'] },
+      traceId,
+      model: 'sentinel-local-library',
+    };
+    setKnowledgeStatus(`جواب من المكتبة · نفس النص المنسوخ · TRACE ${traceId.slice(-6)}`);
+    return result;
+  }
   let failure = new Error('SENTINEL_REPLY_UNAVAILABLE');
   for (let attempt = 0; attempt < 1; attempt += 1) {
     try {
@@ -354,6 +365,7 @@ async function runVoiceTurn() {
     Companion.recording = false;
     const text = await requestTranscription(recording, Companion.controller.signal);
     if (!Companion.active) return;
+    setKnowledgeStatus(`سمعت: «${text.slice(0, 46)}» · كنربط المكتبة`);
     Companion.messages.push({ role: 'user', content: text });
     appendChatMessage('user', text);
     setRobotState('thinking', 'Sentinel كيفكّر…');
@@ -366,9 +378,11 @@ async function runVoiceTurn() {
     await trySpeakReply(answer.reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
-      appendChatMessage('system', 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
-      setKnowledgeStatus(`ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
-      setRobotState('error', 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
+      const code = String(error?.message || '');
+      const listeningIssue = /TRANSCRIPTION|AUDIO_EMPTY|AUDIO_TOO_SHORT|AUDIO_READ|MICROPHONE/.test(code);
+      appendChatMessage('system', listeningIssue ? 'ما سمعتش كلام واضح. قرّب للهاتف وهضر 3 حتى 6 ثواني، ثم عاود اضغط الأخضر.' : 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
+      setKnowledgeStatus(listeningIssue ? 'الاستماع ما التقطش كلام واضح' : `ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
+      setRobotState('error', listeningIssue ? 'ما سمعتش مزيان. عاود هضر بعد ما تضغط الأخضر.' : 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
       Companion.active = false;
       setVoiceControls(false);
     }
@@ -414,6 +428,7 @@ async function sendChatMessage(event) {
   input.value = '';
   Companion.messages.push({ role: 'user', content: text });
   appendChatMessage('user', text);
+  setKnowledgeStatus(`سؤالك للمكتبة: «${text.slice(0, 46)}»`);
   const waitingMessage = appendChatMessage('system', 'Sentinel كيربط بالخادم وكيوجد الجواب…');
   setChatBusy(true);
   setRobotState('thinking', 'Sentinel كيفكّر فجوابك…');

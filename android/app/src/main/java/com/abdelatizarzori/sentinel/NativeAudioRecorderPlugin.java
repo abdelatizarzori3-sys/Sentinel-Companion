@@ -55,11 +55,11 @@ public class NativeAudioRecorderPlugin extends Plugin {
         try {
             recordingFile = new File(getContext().getCacheDir(), "sentinel-voice-" + System.currentTimeMillis() + ".m4a");
             recorder = new MediaRecorder();
-            recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
             recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
             recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
             recorder.setAudioEncodingBitRate(64000);
-            recorder.setAudioSamplingRate(44100);
+            recorder.setAudioSamplingRate(16000);
             recorder.setOutputFile(recordingFile.getAbsolutePath());
             recorder.prepare();
             recorder.start();

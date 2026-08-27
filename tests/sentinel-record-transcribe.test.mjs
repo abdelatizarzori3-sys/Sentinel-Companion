@@ -21,6 +21,8 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.ok(activity.indexOf('registerPlugin(NativeAudioRecorderPlugin.class)') < activity.indexOf('super.onCreate(savedInstanceState)'));
   assert.match(recorder, /name = "NativeAudioRecorder"/);
   assert.match(recorder, /audio\/mp4/);
+  assert.match(recorder, /MediaRecorder\.AudioSource\.VOICE_RECOGNITION/);
+  assert.match(recorder, /setAudioSamplingRate\(16000\)/);
   assert.match(app, /voice\.sentinelTranscribe/);
   assert.match(app, /function beginVoiceSession/);
   assert.match(app, /function runVoiceTurn/);
@@ -31,7 +33,11 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /function isNativeAndroid/);
   assert.match(app, /function requestReply/);
-  assert.match(app, /const BUILD_ID = 'LOCAL-ARABIC-20260827\.4'/);
+  assert.match(app, /localLibraryReply\?\.reply && localLibraryReply\.localMatch/);
+  assert.match(app, /نفس النص المنسوخ/);
+  assert.match(app, /سؤالك للمكتبة/);
+  assert.match(app, /ما سمعتش كلام واضح/);
+  assert.match(app, /const BUILD_ID = 'LISTEN-BRIDGE-20260827\.5'/);
   assert.match(app, /function createTraceId/);
   assert.match(app, /function knowledgeLabel/);
   assert.match(app, /function displayReply/);
@@ -54,7 +60,7 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /NativeOfflineArabicVoice/);
   assert.match(app, /SERVER_TIMEOUT/);
   assert.match(app, /Sentinel كيحضّر الصوت/);
-  assert.match(app, /const REPLY_TIMEOUT_MS = 45_000/);
+  assert.match(app, /const TURN_DURATION_MS = 6500/);
   assert.match(app, /const NATIVE_REPLY_TIMEOUT_MS = 42_000/);
   assert.match(app, /const LOCAL_LIBRARY_DEADLINE_MS = 15_000/);
   assert.match(app, /Sentinel كيربط بالخادم وكيوجد الجواب/);
