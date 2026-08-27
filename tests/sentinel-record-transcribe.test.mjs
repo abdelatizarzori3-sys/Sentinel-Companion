@@ -30,6 +30,8 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /function isNativeAndroid/);
   assert.match(app, /function requestReply/);
   assert.match(app, /function requestGeminiSpeech/);
+  assert.match(app, /function trySpeakReply/);
+  assert.match(app, /الجواب مكتوب، ولكن الصوت ما قدرش يبدا دابا/);
   assert.match(app, /voice\.sentinelSpeech/);
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /SERVER_TIMEOUT/);

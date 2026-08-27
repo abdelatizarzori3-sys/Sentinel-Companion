@@ -175,6 +175,18 @@ async function speakReply(text, signal) {
   });
 }
 
+async function trySpeakReply(text, signal) {
+  try {
+    await speakReply(text, signal);
+    return true;
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error;
+    appendChatMessage('system', 'الجواب مكتوب، ولكن الصوت ما قدرش يبدا دابا.');
+    setRobotState('idle', 'الجواب وصل. تقدر تكمل الدردشة أو تعاود تجرب الصوت.');
+    return false;
+  }
+}
+
 async function beginVoiceSession() {
   if (Companion.active || Companion.turnInProgress || Companion.controller) return;
   const recorder = nativeRecorder();
@@ -230,7 +242,7 @@ async function runVoiceTurn() {
     if (!Companion.active) return;
     Companion.messages.push({ role: 'assistant', content: reply });
     appendChatMessage('assistant', reply);
-    await speakReply(reply, Companion.controller.signal);
+    await trySpeakReply(reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
       const reason = String(error?.message || error);
@@ -289,7 +301,7 @@ async function sendChatMessage(event) {
     removeChatMessage(waitingMessage);
     Companion.messages.push({ role: 'assistant', content: reply });
     appendChatMessage('assistant', reply);
-    await speakReply(reply, controller.signal);
+    await trySpeakReply(reply, controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError') {
       if (waitingMessage) waitingMessage.textContent = 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.';
