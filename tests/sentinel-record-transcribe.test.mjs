@@ -38,8 +38,10 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(tts, /checkStatus/);
   assert.match(tts, /speechStarted/);
   assert.match(tts, /fallbackLanguage/);
-  assert.match(tts, /getDefaultLanguage/);
+  assert.match(tts, /openTtsSettings/);
+  assert.match(tts, /com\.android\.settings\.TTS_SETTINGS/);
   assert.match(app, /function verifyVoiceEngine/);
   assert.match(app, /fallbackLanguage/);
+  assert.match(app, /function openTtsSettings/);
   assert.match(app, /estimatedDurationMs/);
 });

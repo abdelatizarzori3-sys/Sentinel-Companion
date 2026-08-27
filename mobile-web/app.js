@@ -78,7 +78,7 @@ function speak(text) {
     return nativeTts.speak({ text, locale: Companion.locale })
       .then(result => new Promise(resolve => {
         if (!result?.started) throw new Error('TTS_NOT_STARTED');
-        if (result.fallbackLanguage) showToast(`لا يتوفر صوت العربية؛ يستخدم Sentinel صوت الجهاز المتاح (${result.locale || 'الافتراضي'}).`, 'info');
+        if (result.fallbackLanguage) showToast(`استخدم Sentinel صوتًا بديلًا (${result.locale || 'الافتراضي'}).`, 'info');
         window.clearTimeout(Companion.speechTimer);
         Companion.speechTimer = window.setTimeout(() => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); resolve(true); }, Number(result.estimatedDurationMs) || 1800);
       }))
@@ -117,12 +117,27 @@ async function verifyVoiceEngine() {
   try {
     const status = await tts.checkStatus({ locale: Companion.locale });
     if (!status?.ready) throw new Error('TTS_UNAVAILABLE');
-    if (!status.requestedLanguageAvailable) showToast(`صوت العربية غير مثبت؛ سيختبر Sentinel صوت الجهاز المتاح (${status.defaultLocale || 'الافتراضي'}).`, 'info');
+    if (!status.requestedLanguageAvailable) {
+      setVoiceStage('error', 'صوت العربية غير مثبت؛ لن ينطق Sentinel النص العربي بصوت غير مناسب.');
+      showToast('ثبّت صوت العربية من إعدادات محرك النص إلى كلام، ثم أعد الفحص.', 'info');
+      return;
+    }
     setVoiceStage('speaking', 'محرك صوت Android جاهز؛ بدأ اختبار النطق.');
     await previewVoice();
   } catch {
     setVoiceStage('error', 'محرك نطق Android غير جاهز أو لا يحتوي صوت العربية.');
     showToast('خدمة نطق العربية غير جاهزة. فعّل «تحويل النص إلى كلام» من إعدادات الهاتف.', 'error');
+  }
+}
+
+async function openTtsSettings() {
+  const tts = window.Capacitor?.Plugins?.NativeTextToSpeech;
+  if (!tts?.openTtsSettings) return showToast('افتح إعدادات الهاتف وابحث عن «تحويل النص إلى كلام» ثم نزّل صوت العربية.', 'info');
+  try {
+    await tts.openTtsSettings();
+    showToast('اختر محرك النص إلى كلام ثم نزّل صوت العربية أو العربية المغربية إن ظهر.', 'info');
+  } catch {
+    showToast('تعذر فتح إعدادات الصوت. افتح إعدادات الهاتف وابحث عن «تحويل النص إلى كلام».', 'info');
   }
 }
 
@@ -505,6 +520,7 @@ function init() {
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
   $('preview-voice').addEventListener('click', verifyVoiceEngine); $('listen-toggle').addEventListener('click', toggleListening); $('call-toggle').addEventListener('click', toggleVoiceCall); $('sensor-toggle').addEventListener('click', toggleSensors);
   $('microphone-settings')?.addEventListener('click', openMicrophoneSettings);
+  $('tts-settings')?.addEventListener('click', openTtsSettings);
   $('weather-location').addEventListener('click', updateWeather); $('joke-load').addEventListener('click', loadJoke);
   $('toast-dismiss').addEventListener('click', () => { $('toast').dataset.open = 'false'; });
 }

@@ -1,6 +1,7 @@
 package com.abdelatizarzori.sentinel;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -76,7 +77,7 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         result.put("engine", textToSpeech == null ? "" : textToSpeech.getDefaultEngine());
         String requestedTag = call.getString("locale", "ar-MA");
         Locale requested = Locale.forLanguageTag(requestedTag);
-        boolean requestedAvailable = textToSpeech != null && languageAvailable(requested);
+        boolean requestedAvailable = textToSpeech != null && (languageAvailable(requested) || ("ar".equals(requested.getLanguage()) && languageAvailable(new Locale("ar"))));
         result.put("requestedLanguageAvailable", requestedAvailable);
         result.put("defaultLocale", textToSpeech == null || textToSpeech.getDefaultLanguage() == null ? "" : textToSpeech.getDefaultLanguage().toLanguageTag());
         call.resolve(result);
@@ -100,14 +101,8 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
             availability = textToSpeech.isLanguageAvailable(applied);
         }
         if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
-            Locale deviceLocale = textToSpeech.getDefaultLanguage();
-            if (languageAvailable(deviceLocale)) {
-                applied = deviceLocale;
-                usingFallbackLanguage = true;
-            } else {
-                call.reject("TTS_LANGUAGE_UNAVAILABLE");
-                return;
-            }
+            call.reject("TTS_LANGUAGE_UNAVAILABLE");
+            return;
         }
         textToSpeech.setLanguage(applied);
         final String appliedLanguageTag = applied.toLanguageTag();
@@ -145,5 +140,17 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         Activity activity = getActivity();
         if (activity != null) activity.runOnUiThread(() -> { if (textToSpeech != null) textToSpeech.stop(); });
         call.resolve();
+    }
+
+    @PluginMethod
+    public void openTtsSettings(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) { call.reject("TTS_SETTINGS_UNAVAILABLE"); return; }
+        try {
+            activity.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("TTS_SETTINGS_UNAVAILABLE");
+        }
     }
 }
