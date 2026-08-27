@@ -2,7 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'ARM64-LOCAL-20260827.6';
+const BUILD_ID = 'CLEAN-CHAT-20260827.7';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -100,7 +100,22 @@ function nativeOfflineArabicVoice() {
 
 function isSafeSentinelReply(reply) {
   if (typeof reply !== 'string' || !reply.trim()) return false;
-  return !/for more information|thank you for watching|subscribe|اشتركوا في القناة|https?:\/\/|www\./i.test(reply);
+  return /[\u0600-\u06FF]/.test(reply) && !/for more information|thank you for watching|subscribe|اشتركوا في القناة|https?:\/\/|www\.|sendaimedia|kenhu|comments section/i.test(reply);
+}
+
+function validateSentinelInput(text) {
+  const checked = window.SentinelInputGuard?.check?.(text);
+  if (checked) return checked;
+  return /[\u0600-\u06FF]/.test(String(text || ''))
+    ? { ok: true, reason: 'arabic' }
+    : { ok: false, reason: 'not_arabic' };
+}
+
+function showRejectedInput(source) {
+  const detail = source === 'voice' ? 'الاستماع التقط نصًا غير واضح أو خارجيًا.' : 'النص ما بانش كسؤال عربي أو دارجة.';
+  appendChatMessage('system', `${detail} ما دخلناش للدردشة ولا للمكتبة. عاود قول أو كتب سؤالك بالدارجة.`);
+  setKnowledgeStatus('تم حظر نص غير موثوق قبل المكتبة');
+  setRobotState('idle', 'عاود قول سؤالك بالدارجة بوضوح.');
 }
 
 function nativeTransport() {
@@ -176,7 +191,9 @@ async function requestTranscription(recording, signal) {
   }, signal);
   const text = payload?.[0]?.result?.data?.json?.text;
   if (status < 200 || status >= 300 || typeof text !== 'string' || !text.trim()) throw new Error(payload?.[0]?.error?.json?.message || 'TRANSCRIPTION_FAILED');
-  return text.trim();
+  const cleaned = text.trim();
+  if (!validateSentinelInput(cleaned).ok) throw new Error('UNTRUSTED_TRANSCRIPT');
+  return cleaned;
 }
 
 async function requestReply(messages, signal) {
@@ -379,10 +396,12 @@ async function runVoiceTurn() {
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
       const code = String(error?.message || '');
-      const listeningIssue = /TRANSCRIPTION|AUDIO_EMPTY|AUDIO_TOO_SHORT|AUDIO_READ|MICROPHONE/.test(code);
-      appendChatMessage('system', listeningIssue ? 'ما سمعتش كلام واضح. قرّب للهاتف وهضر 3 حتى 6 ثواني، ثم عاود اضغط الأخضر.' : 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
-      setKnowledgeStatus(listeningIssue ? 'الاستماع ما التقطش كلام واضح' : `ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
-      setRobotState('error', listeningIssue ? 'ما سمعتش مزيان. عاود هضر بعد ما تضغط الأخضر.' : 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
+      const rejected = code === 'UNTRUSTED_TRANSCRIPT';
+      const listeningIssue = rejected || /TRANSCRIPTION|AUDIO_EMPTY|AUDIO_TOO_SHORT|AUDIO_READ|MICROPHONE/.test(code);
+      if (rejected) showRejectedInput('voice');
+      else appendChatMessage('system', listeningIssue ? 'ما سمعتش كلام واضح. قرّب للهاتف وهضر 3 حتى 6 ثواني، ثم عاود اضغط الأخضر.' : 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
+      if (!rejected) setKnowledgeStatus(listeningIssue ? 'الاستماع ما التقطش كلام واضح' : `ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
+      if (!rejected) setRobotState('error', listeningIssue ? 'ما سمعتش مزيان. عاود هضر بعد ما تضغط الأخضر.' : 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
       Companion.active = false;
       setVoiceControls(false);
     }
@@ -425,6 +444,10 @@ async function sendChatMessage(event) {
   const text = input?.value.trim();
   if (!text || Companion.controller) return;
   if (Companion.active) await stopVoiceSession();
+  if (!validateSentinelInput(text).ok) {
+    showRejectedInput('typed');
+    return;
+  }
   input.value = '';
   Companion.messages.push({ role: 'user', content: text });
   appendChatMessage('user', text);
