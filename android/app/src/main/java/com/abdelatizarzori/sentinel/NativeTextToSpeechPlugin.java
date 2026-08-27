@@ -1,7 +1,9 @@
 package com.abdelatizarzori.sentinel;
 
 import android.app.Activity;
+import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -15,51 +17,106 @@ import java.util.Locale;
 public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnInitListener {
     private TextToSpeech textToSpeech;
     private boolean ready = false;
-    private PluginCall pendingCall;
+    private PluginCall pendingSpeakCall;
+    private PluginCall pendingStatusCall;
+
+    @PluginMethod
+    public void checkStatus(PluginCall call) {
+        Activity activity = getActivity();
+        if (activity == null) { call.reject("TTS_UNAVAILABLE"); return; }
+        activity.runOnUiThread(() -> {
+            if (textToSpeech == null) {
+                pendingStatusCall = call;
+                textToSpeech = new TextToSpeech(getContext(), this);
+            } else {
+                resolveStatus(call);
+            }
+        });
+    }
 
     @PluginMethod
     public void speak(PluginCall call) {
         Activity activity = getActivity();
         if (activity == null) { call.reject("TTS_UNAVAILABLE"); return; }
-        activity.runOnUiThread(() -> speakOnMainThread(call));
-    }
-
-    private void speakOnMainThread(PluginCall call) {
-        String text = call.getString("text", "").trim();
-        if (text.isEmpty()) { call.reject("TTS_EMPTY_TEXT"); return; }
-        if (textToSpeech == null) {
-            pendingCall = call;
-            textToSpeech = new TextToSpeech(getContext(), this);
-            return;
-        }
-        if (!ready) { call.reject("TTS_UNAVAILABLE"); return; }
-        startSpeaking(call, text);
+        activity.runOnUiThread(() -> {
+            String text = call.getString("text", "").trim();
+            if (text.isEmpty()) { call.reject("TTS_EMPTY_TEXT"); return; }
+            if (textToSpeech == null) {
+                pendingSpeakCall = call;
+                textToSpeech = new TextToSpeech(getContext(), this);
+                return;
+            }
+            if (!ready) { call.reject("TTS_INITIALIZING"); return; }
+            startSpeaking(call, text);
+        });
     }
 
     @Override
     public void onInit(int status) {
         ready = status == TextToSpeech.SUCCESS;
-        PluginCall call = pendingCall;
-        pendingCall = null;
-        if (call == null) return;
-        if (!ready) { call.reject("TTS_UNAVAILABLE"); return; }
         Activity activity = getActivity();
-        if (activity == null) { call.reject("TTS_UNAVAILABLE"); return; }
-        activity.runOnUiThread(() -> startSpeaking(call, call.getString("text", "").trim()));
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (pendingStatusCall != null) {
+                resolveStatus(pendingStatusCall);
+                pendingStatusCall = null;
+            }
+            if (pendingSpeakCall != null) {
+                PluginCall call = pendingSpeakCall;
+                pendingSpeakCall = null;
+                if (!ready) { call.reject("TTS_UNAVAILABLE"); return; }
+                startSpeaking(call, call.getString("text", "").trim());
+            }
+        });
+    }
+
+    private void resolveStatus(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("ready", ready);
+        result.put("engine", textToSpeech == null ? "" : textToSpeech.getDefaultEngine());
+        call.resolve(result);
     }
 
     private void startSpeaking(PluginCall call, String text) {
         if (textToSpeech == null || text.isEmpty()) { call.reject("TTS_EMPTY_TEXT"); return; }
-        String languageTag = call.getString("locale", "ar-MA");
-        Locale locale = Locale.forLanguageTag(languageTag);
-        if (textToSpeech.isLanguageAvailable(locale) >= TextToSpeech.LANG_AVAILABLE) textToSpeech.setLanguage(locale);
+        String tag = call.getString("locale", "ar-MA");
+        Locale requested = Locale.forLanguageTag(tag);
+        int availability = textToSpeech.isLanguageAvailable(requested);
+        Locale applied = requested;
+        if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
+            applied = new Locale("ar");
+            availability = textToSpeech.isLanguageAvailable(applied);
+        }
+        if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
+            call.reject("TTS_LANGUAGE_UNAVAILABLE");
+            return;
+        }
+        textToSpeech.setLanguage(applied);
+        final String appliedLanguageTag = applied.toLanguageTag();
         String utteranceId = "sentinel-" + System.currentTimeMillis();
-        textToSpeech.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
-            @Override public void onStart(String id) { }
-            @Override public void onDone(String id) { if (utteranceId.equals(id)) call.resolve(new JSObject()); }
-            @Override public void onError(String id) { if (utteranceId.equals(id)) call.reject("TTS_ERROR"); }
+        textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override public void onStart(String id) {
+                if (!utteranceId.equals(id)) return;
+                JSObject result = new JSObject();
+                result.put("started", true);
+                result.put("locale", appliedLanguageTag);
+                result.put("estimatedDurationMs", Math.max(1100, Math.min(12000, text.length() * 82)));
+                call.resolve(result);
+                notifyListeners("speechStarted", result);
+            }
+            @Override public void onDone(String id) {
+                if (utteranceId.equals(id)) notifyListeners("speechFinished", new JSObject());
+            }
+            @Override public void onError(String id) {
+                if (utteranceId.equals(id)) call.reject("TTS_ERROR");
+            }
+            @Override public void onError(String id, int errorCode) {
+                if (utteranceId.equals(id)) call.reject("TTS_ERROR_" + errorCode);
+            }
         });
-        int result = textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId);
+        Bundle params = new Bundle();
+        params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
+        int result = textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
         if (result == TextToSpeech.ERROR) call.reject("TTS_ERROR");
     }
 

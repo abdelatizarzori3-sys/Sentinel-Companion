@@ -5,7 +5,7 @@ const CONFIG = {
 const Companion = {
   controller: null, messages: [], locale: 'ar-MA', voiceEnabled: true,
   voices: [], voiceName: '', listening: false, recognition: null, sensors: false,
-  lastMotionAt: 0, weather: null, recording: false, callActive: false, callTimer: null, callTurnInProgress: false,
+  lastMotionAt: 0, weather: null, recording: false, callActive: false, callTimer: null, callTurnInProgress: false, speechTimer: null,
 };
 
 const $ = id => document.getElementById(id);
@@ -76,8 +76,19 @@ function speak(text) {
     setRobotState('speaking', 'Sentinel يتحدث الآن');
     setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.');
     return nativeTts.speak({ text, locale: Companion.locale })
-      .catch(() => { setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); showToast('تعذر نطق الرد من خدمة الصوت في الجهاز. يبقى الرد مكتوبًا أمامك.', 'info'); })
-      .finally(() => setRobotState('idle', 'جاهز للتفاعل'));
+      .then(result => new Promise(resolve => {
+        if (!result?.started) throw new Error('TTS_NOT_STARTED');
+        window.clearTimeout(Companion.speechTimer);
+        Companion.speechTimer = window.setTimeout(() => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); resolve(true); }, Number(result.estimatedDurationMs) || 1800);
+      }))
+      .catch(error => {
+        const reason = String(error?.message || error);
+        const note = reason.includes('LANGUAGE') ? 'خدمة نطق العربية غير مثبتة في الهاتف.' : 'لم تبدأ خدمة نطق الجهاز.';
+        setVoiceStage('error', `${note} الرد مكتوب أمامك.`);
+        showToast(`${note} فعّل محرك تحويل النص إلى كلام من إعدادات الهاتف.`, 'info');
+        setRobotState('idle', 'جاهز للتفاعل');
+        return false;
+      });
   }
   if (!('speechSynthesis' in window)) return Promise.resolve(false);
   window.speechSynthesis.cancel();
@@ -96,6 +107,20 @@ function previewVoice() {
   if (!window.Capacitor?.Plugins?.NativeTextToSpeech && !('speechSynthesis' in window)) return showToast('النطق غير مدعوم في هذا الجهاز.', 'error');
   const line = Companion.locale === 'ar-MA' ? 'سلام، أنا Sentinel. نقدر نهضر معاك بالدارجة المغربية.' : Companion.locale === 'en-US' ? 'Hello, I am Sentinel, your voice companion.' : 'مرحبًا، أنا Sentinel، رفيقك الصوتي.';
   const enabled = Companion.voiceEnabled; Companion.voiceEnabled = true; speak(line); Companion.voiceEnabled = enabled;
+}
+
+async function verifyVoiceEngine() {
+  const tts = window.Capacitor?.Plugins?.NativeTextToSpeech;
+  if (!tts?.checkStatus) return previewVoice();
+  try {
+    const status = await tts.checkStatus();
+    if (!status?.ready) throw new Error('TTS_UNAVAILABLE');
+    setVoiceStage('speaking', 'محرك صوت Android جاهز؛ بدأ اختبار النطق.');
+    await previewVoice();
+  } catch {
+    setVoiceStage('error', 'محرك نطق Android غير جاهز أو لا يحتوي صوت العربية.');
+    showToast('خدمة نطق العربية غير جاهزة. فعّل «تحويل النص إلى كلام» من إعدادات الهاتف.', 'error');
+  }
 }
 
 function weatherContext() {
@@ -165,6 +190,7 @@ async function sendMessage() {
 
 function stopStream() {
   Companion.controller?.abort(); Companion.controller = null;
+  window.clearTimeout(Companion.speechTimer);
   window.Capacitor?.Plugins?.NativeTextToSpeech?.stop?.().catch(() => {});
   window.speechSynthesis?.cancel();
   setRobotState('idle', 'تم إيقاف الاستجابة');
@@ -474,7 +500,7 @@ function init() {
   $('companion-voice').addEventListener('change', event => { Companion.voiceName = event.target.value; });
   $('voice-toggle').textContent = 'الصوت مفعّل';
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
-  $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('call-toggle').addEventListener('click', toggleVoiceCall); $('sensor-toggle').addEventListener('click', toggleSensors);
+  $('preview-voice').addEventListener('click', verifyVoiceEngine); $('listen-toggle').addEventListener('click', toggleListening); $('call-toggle').addEventListener('click', toggleVoiceCall); $('sensor-toggle').addEventListener('click', toggleSensors);
   $('microphone-settings')?.addEventListener('click', openMicrophoneSettings);
   $('weather-location').addEventListener('click', updateWeather); $('joke-load').addEventListener('click', loadJoke);
   $('toast-dismiss').addEventListener('click', () => { $('toast').dataset.open = 'false'; });
