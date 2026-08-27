@@ -36,9 +36,9 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /SERVER_TIMEOUT/);
   assert.match(app, /Sentinel كيحضّر الصوت/);
-  assert.match(app, /REPLY_TIMEOUT_MS = 12000/);
-  assert.match(app, /NATIVE_REPLY_TIMEOUT_MS = 6000/);
-  assert.match(app, /Sentinel كييكتب جوابك/);
+  assert.match(app, /const REPLY_TIMEOUT_MS = 45_000/);
+  assert.match(app, /const NATIVE_REPLY_TIMEOUT_MS = 42_000/);
+  assert.match(app, /Sentinel كيربط بالخادم وكيوجد الجواب/);
   assert.match(app, /operation === 'reply'/);
   assert.match(generatedAudio, /AudioTrack\.MODE_STATIC/);
   assert.match(generatedAudio, /AUDIO_BUFFER_WRITE_FAILED/);

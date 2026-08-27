@@ -8,8 +8,8 @@ const Companion = {
 };
 
 const TURN_DURATION_MS = 4800;
-const REPLY_TIMEOUT_MS = 12000;
-const NATIVE_REPLY_TIMEOUT_MS = 6000;
+const REPLY_TIMEOUT_MS = 45_000;
+const NATIVE_REPLY_TIMEOUT_MS = 42_000;
 const $ = id => document.getElementById(id);
 
 function setRobotState(state = 'idle', label = 'اضغط النقطة الخضراء وتكلّم') {
@@ -111,8 +111,10 @@ async function postSentinel(operation, json, signal) {
         const nativeTimedOut = new Promise((_, reject) => { nativeTimeoutId = window.setTimeout(() => reject(new Error('NATIVE_REPLY_TIMEOUT')), NATIVE_REPLY_TIMEOUT_MS); });
         const nativeResult = await Promise.race([nativePost(), nativeTimedOut]);
         if (nativeResult.status >= 200 && nativeResult.status < 300) return nativeResult;
+        throw new Error(`HTTP_${nativeResult.status}`);
       } catch (error) {
         if (error?.name === 'AbortError') throw error;
+        throw error;
       } finally {
         window.clearTimeout(nativeTimeoutId);
       }
@@ -238,14 +240,16 @@ async function runVoiceTurn() {
     Companion.messages.push({ role: 'user', content: text });
     appendChatMessage('user', text);
     setRobotState('thinking', 'Sentinel كيفكّر…');
+    const waitingMessage = appendChatMessage('system', 'Sentinel كيربط بالخادم وكيوجد الجواب…');
     const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
     if (!Companion.active) return;
+    removeChatMessage(waitingMessage);
     Companion.messages.push({ role: 'assistant', content: reply });
     appendChatMessage('assistant', reply);
     await trySpeakReply(reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
-      const reason = String(error?.message || error);
+      appendChatMessage('system', 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
       setRobotState('error', 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
       Companion.active = false;
       setVoiceControls(false);
@@ -290,7 +294,7 @@ async function sendChatMessage(event) {
   input.value = '';
   Companion.messages.push({ role: 'user', content: text });
   appendChatMessage('user', text);
-  const waitingMessage = appendChatMessage('system', 'Sentinel كييكتب جوابك…');
+  const waitingMessage = appendChatMessage('system', 'Sentinel كيربط بالخادم وكيوجد الجواب…');
   setChatBusy(true);
   setRobotState('thinking', 'Sentinel كيفكّر فجوابك…');
   const controller = new AbortController();
