@@ -8,6 +8,7 @@ const Companion = {
 };
 
 const TURN_DURATION_MS = 4800;
+const REPLY_TIMEOUT_MS = 12000;
 const $ = id => document.getElementById(id);
 
 function setRobotState(state = 'idle', label = 'اضغط النقطة الخضراء وتكلّم') {
@@ -32,6 +33,11 @@ function appendChatMessage(role, text) {
   message.textContent = text;
   log.appendChild(message);
   log.scrollTop = log.scrollHeight;
+  return message;
+}
+
+function removeChatMessage(message) {
+  message?.remove?.();
 }
 
 function setChatBusy(busy) {
@@ -70,7 +76,15 @@ async function ensureMicrophonePermission(recorder) {
 async function postSentinel(operation, json, signal) {
   const body = JSON.stringify({ 0: { json } });
   const transport = nativeTransport();
-  if (isNativeAndroid() && transport?.post) {
+  const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : operation === 'speech' ? 'voice.sentinelSpeech' : 'ai.sentinelReply';
+  const browserPost = async () => {
+    const response = await fetch(`${CONFIG.apiBase}/api/trpc/${path}?batch=1`, {
+      method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal, body,
+    });
+    return { status: response.status, payload: await response.json().catch(() => null) };
+  };
+  const nativePost = async () => {
     if (signal?.aborted) throw new DOMException('The request was stopped.', 'AbortError');
     let timeoutId;
     let removeAbort = () => {};
@@ -88,13 +102,19 @@ async function postSentinel(operation, json, signal) {
       window.clearTimeout(timeoutId);
       removeAbort();
     }
+  };
+  if (operation === 'reply') {
+    try {
+      const browserResult = await browserPost();
+      if (browserResult.status >= 200 && browserResult.status < 300) return browserResult;
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error;
+    }
+    if (isNativeAndroid() && transport?.post) return nativePost();
+    return browserPost();
   }
-  const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : operation === 'speech' ? 'voice.sentinelSpeech' : 'ai.sentinelReply';
-  const response = await fetch(`${CONFIG.apiBase}/api/trpc/${path}?batch=1`, {
-    method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal, body,
-  });
-  return { status: response.status, payload: await response.json().catch(() => null) };
+  if (isNativeAndroid() && transport?.post) return nativePost();
+  return browserPost();
 }
 
 async function requestTranscription(recording, signal) {
@@ -110,7 +130,11 @@ async function requestReply(messages, signal) {
   let failure = new Error('SENTINEL_REPLY_UNAVAILABLE');
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const { status, payload } = await postSentinel('reply', { messages, locale: Companion.locale, context: null }, signal);
+      let timeoutId;
+      const replyRequest = postSentinel('reply', { messages, locale: Companion.locale, context: null }, signal);
+      const timedOut = new Promise((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('REPLY_TIMEOUT')), REPLY_TIMEOUT_MS); });
+      const { status, payload } = await Promise.race([replyRequest, timedOut]);
+      window.clearTimeout(timeoutId);
       const reply = payload?.[0]?.result?.data?.json?.reply;
       if (status >= 200 && status < 300 && typeof reply === 'string' && reply.trim()) return reply.trim();
       failure = new Error(payload?.[0]?.error?.json?.message || `HTTP_${status}`);
@@ -248,6 +272,7 @@ async function sendChatMessage(event) {
   input.value = '';
   Companion.messages.push({ role: 'user', content: text });
   appendChatMessage('user', text);
+  const waitingMessage = appendChatMessage('system', 'Sentinel كييكتب جوابك…');
   setChatBusy(true);
   setRobotState('thinking', 'Sentinel كيفكّر فجوابك…');
   const controller = new AbortController();
@@ -255,13 +280,16 @@ async function sendChatMessage(event) {
   try {
     const reply = await requestReply(Companion.messages.slice(-10), controller.signal);
     if (controller.signal.aborted) return;
+    removeChatMessage(waitingMessage);
     Companion.messages.push({ role: 'assistant', content: reply });
     appendChatMessage('assistant', reply);
     await speakReply(reply, controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError') {
-      appendChatMessage('system', 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.');
-      setRobotState('error', 'تعذر إكمال الجواب.');
+      if (waitingMessage) waitingMessage.textContent = 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.';
+      setRobotState('error', error?.message === 'REPLY_TIMEOUT' ? 'تأخر الرد. عاود من بعد لحظة.' : 'تعذر إكمال الجواب.');
+    } else {
+      removeChatMessage(waitingMessage);
     }
   } finally {
     if (Companion.controller === controller) Companion.controller = null;
