@@ -70,7 +70,7 @@ window.SentinelLocalLibrary = (() => {
     if (fixed) return fixed;
     const hit = topics.find(([pattern]) => pattern.test(normalize(text)));
     if (hit) return { reply: hit[1], suggestions: hit[2], plan: ['حدد النتيجة اللي بغيتي', 'بدا بخطوة صغيرة اليوم', 'راجع النتيجة ونظمو الخطوة الجاية'], localMatch: true };
-    return { reply: `فهمت رسالتك: «${String(text || '').slice(0, 90)}». قل ليا الهدف أو المشكل والقيود اللي عندك باش نعطيك جواب مضبوط.`, suggestions: ['بغيت خطة', 'بغيت شرح بسيط', 'بغيت حل لمشكل'], plan: [], localMatch: false };
+    return { reply: '', suggestions: [], plan: [], localMatch: false, needsServer: true };
   };
   return { version: 'LOCAL-LIB-28', topicCount: topics.length, direct, answer };
 })();

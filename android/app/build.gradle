@@ -7,8 +7,8 @@ android {
         applicationId "com.abdelatizarzori.sentinel"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "1.4.4-brainanswer"
+        versionCode 16
+        versionName "1.4.5-questionguard"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters "arm64-v8a"

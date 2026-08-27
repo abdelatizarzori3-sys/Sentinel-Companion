@@ -2,7 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'BRAIN-ANSWER-20260827.8';
+const BUILD_ID = 'QUESTION-GUARD-20260827.9';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -241,17 +241,6 @@ async function requestReply(messages, signal) {
       if (error?.name === 'AbortError') throw error;
       failure = error instanceof Error ? error : failure;
     }
-  }
-  const localReply = window.SentinelLocalLibrary?.answer?.(latestMessage);
-  if (localReply?.reply) {
-    const result = {
-      ...localReply,
-      knowledge: { mode: 'internal', fresh: false, fallback: true, local: true, sources: ['مكتبة Android الداخلية'] },
-      traceId,
-      model: 'sentinel-local-library',
-    };
-    setKnowledgeStatus(`${knowledgeLabel(result.knowledge)} · TRACE ${traceId.slice(-6)}`);
-    return result;
   }
   failure.traceId = traceId;
   throw failure;

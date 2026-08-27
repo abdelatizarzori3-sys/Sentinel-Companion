@@ -40,7 +40,8 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /function validateSentinelInput/);
   assert.match(app, /UNTRUSTED_TRANSCRIPT/);
   assert.match(app, /تم حظر نص غير موثوق قبل المكتبة/);
-  assert.match(app, /const BUILD_ID = 'BRAIN-ANSWER-20260827\.8'/);
+  assert.match(app, /const BUILD_ID = 'QUESTION-GUARD-20260827\.9'/);
+  assert.doesNotMatch(app, /فهمت رسالتك: «\$\{String\(text \|\| ''\)/);
   assert.match(app, /function createTraceId/);
   assert.match(app, /function knowledgeLabel/);
   assert.match(app, /function displayReply/);

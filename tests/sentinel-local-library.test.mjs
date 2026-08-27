@@ -23,6 +23,8 @@ test('Sentinel local library is bundled and answers greetings without a network 
   assert.match(library.direct('Thank you for watching').reply, /محتوى خارجي/);
   assert.equal(library.answer('بغيت نصلح مشكل فالتطبيق').localMatch, true);
   assert.equal(library.answer('كلام بلا موضوع').localMatch, false);
+  assert.equal(library.answer('كلام بلا موضوع').needsServer, true);
+  assert.equal(library.answer('كلام بلا موضوع').reply, '');
   assert.match(library.answer('مرحبا').reply, /مرحبا/);
   assert.match(library.answer('بغيت نصلح مشكل فالتطبيق').reply, /المشكل/);
   assert.doesNotMatch(library.answer('مرحبا').reply, /قناة|اشتراك|فيديو/i);
