@@ -173,6 +173,10 @@ function nativeRecognitionPlugin() {
   return window.Capacitor?.Plugins?.NativeSpeechRecognition || null;
 }
 
+function isNativeAndroid() {
+  return window.Capacitor?.getPlatform?.() === 'android' || Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
 function nativeAudioRecorderPlugin() {
   return window.Capacitor?.Plugins?.NativeAudioRecorder || null;
 }
@@ -207,7 +211,7 @@ async function ensureNativeMicrophonePermission(plugin) {
 }
 
 async function openMicrophoneSettings() {
-  const plugin = nativeRecognitionPlugin();
+  const plugin = nativeAudioRecorderPlugin() || nativeRecognitionPlugin();
   if (!plugin?.openAppSettings) return showToast('زر الإعدادات متاح داخل نسخة Android الجديدة فقط.', 'info');
   try {
     await plugin.openAppSettings();
@@ -291,6 +295,10 @@ async function toggleNativeListening(plugin) {
 function toggleListening() {
   const recorder = nativeAudioRecorderPlugin();
   if (recorder) return toggleRecordedConversation(recorder);
+  if (isNativeAndroid()) {
+    setVoiceStage('error', 'مسجل Sentinel الأصلي لم يبدأ بعد. أعد فتح التطبيق أو ثبّت النسخة الجديدة.');
+    return showToast('مسجل Sentinel الأصلي غير جاهز. لا تستخدم هذه النسخة إذن WebView كبديل.', 'error');
+  }
   const nativePlugin = nativeRecognitionPlugin();
   if (nativePlugin) return toggleNativeListening(nativePlugin);
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -316,10 +324,23 @@ function updateVoiceCapability() {
   const nativePlugin = nativeRecognitionPlugin();
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const listen = $('listen-toggle'); const fallback = $('voice-fallback');
-  if (recorder || nativePlugin) {
+  if (recorder) {
     listen.disabled = false;
     listen.textContent = 'بدء الاستماع';
-    fallback.textContent = recorder ? 'يسجل Sentinel رسالتك أولًا ثم يحولها إلى نص ويرسل الرد المنطوق. اضغط «بدء الاستماع»، تكلّم، ثم اضغط الزر ثانية للإرسال.' : 'يستخدم Sentinel خدمة التعرف الصوتي الأصلية في Android. سيطلب الإذن مرة واحدة عند بدء الاستماع؛ تبقى المحادثة النصية متاحة دائمًا.';
+    fallback.textContent = 'مسار التسجيل الأصلي جاهز: سجّل رسالتك ثم أرسلها للتحويل إلى نص والرد المنطوق.';
+    return;
+  }
+  if (isNativeAndroid()) {
+    listen.disabled = true;
+    listen.textContent = 'جار تهيئة مسجل الصوت';
+    fallback.textContent = 'لم يبدأ مسجل Sentinel الأصلي بعد. أغلق التطبيق وافتحه، أو ثبّت النسخة الأحدث. لن يعود التطبيق إلى إذن WebView القديم.';
+    setVoiceStage('error', 'مسجل Sentinel الأصلي غير مسجّل داخل Android.');
+    return;
+  }
+  if (nativePlugin) {
+    listen.disabled = false;
+    listen.textContent = 'بدء الاستماع';
+    fallback.textContent = 'يستخدم Sentinel خدمة التعرف الصوتي الأصلية في هذا الجهاز. تبقى المحادثة النصية متاحة دائمًا.';
     return;
   }
   if (!Recognition) {

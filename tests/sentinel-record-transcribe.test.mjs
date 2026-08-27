@@ -12,6 +12,7 @@ const tts = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatiza
 test('Sentinel uses native recording, server transcription, and spoken replies on Android', () => {
   assert.match(activity, /registerPlugin\(NativeAudioRecorderPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeTextToSpeechPlugin\.class\)/);
+  assert.ok(activity.indexOf('registerPlugin(NativeAudioRecorderPlugin.class)') < activity.indexOf('super.onCreate(savedInstanceState)'));
   assert.match(recorder, /name = "NativeAudioRecorder"/);
   assert.match(recorder, /audio\/mp4/);
   assert.match(app, /voice\.sentinelTranscribe/);
@@ -19,5 +20,7 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(app, /await sendMessage\(\)/);
   assert.match(app, /voiceEnabled: true/);
   assert.match(app, /NativeTextToSpeech/);
+  assert.match(app, /function isNativeAndroid/);
+  assert.match(app, /مسجل Sentinel الأصلي غير جاهز/);
   assert.match(tts, /TextToSpeech/);
 });
