@@ -8,10 +8,12 @@ const app = readFileSync(resolve(root, 'mobile-web/app.js'), 'utf8');
 const activity = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/MainActivity.java'), 'utf8');
 const recorder = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeAudioRecorderPlugin.java'), 'utf8');
 const tts = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeTextToSpeechPlugin.java'), 'utf8');
+const transport = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeSentinelTransportPlugin.java'), 'utf8');
 
 test('Sentinel uses native recording, server transcription, and spoken replies on Android', () => {
   assert.match(activity, /registerPlugin\(NativeAudioRecorderPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeTextToSpeechPlugin\.class\)/);
+  assert.match(activity, /registerPlugin\(NativeSentinelTransportPlugin\.class\)/);
   assert.ok(activity.indexOf('registerPlugin(NativeAudioRecorderPlugin.class)') < activity.indexOf('super.onCreate(savedInstanceState)'));
   assert.match(recorder, /name = "NativeAudioRecorder"/);
   assert.match(recorder, /audio\/mp4/);
@@ -25,5 +27,12 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(app, /function requestSentinelReply/);
   assert.match(app, /credentials: 'omit'/);
   assert.match(app, /خادم Sentinel لم يرد الآن/);
+  assert.match(app, /function nativeSentinelTransport/);
+  assert.match(app, /function postSentinel/);
+  assert.match(transport, /NativeSentinelTransport/);
+  assert.match(transport, /TRANSPORT_OPERATION_DENIED/);
+  assert.match(app, /function toggleVoiceCall/);
+  assert.match(app, /function runVoiceCallTurn/);
+  assert.match(app, /4200/);
   assert.match(tts, /TextToSpeech/);
 });

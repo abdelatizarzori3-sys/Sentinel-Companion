@@ -5,7 +5,7 @@ const CONFIG = {
 const Companion = {
   controller: null, messages: [], locale: 'ar-MA', voiceEnabled: true,
   voices: [], voiceName: '', listening: false, recognition: null, sensors: false,
-  lastMotionAt: 0, weather: null, recording: false,
+  lastMotionAt: 0, weather: null, recording: false, callActive: false, callTimer: null, callTurnInProgress: false,
 };
 
 const $ = id => document.getElementById(id);
@@ -70,25 +70,26 @@ function chosenVoice() {
 }
 
 function speak(text) {
-  if (!Companion.voiceEnabled || !text.trim()) return;
+  if (!Companion.voiceEnabled || !text.trim()) return Promise.resolve(false);
   const nativeTts = window.Capacitor?.Plugins?.NativeTextToSpeech;
   if (nativeTts?.speak) {
     setRobotState('speaking', 'Sentinel يتحدث الآن');
     setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.');
-    nativeTts.speak({ text, locale: Companion.locale })
+    return nativeTts.speak({ text, locale: Companion.locale })
       .catch(() => { setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); showToast('تعذر نطق الرد من خدمة الصوت في الجهاز. يبقى الرد مكتوبًا أمامك.', 'info'); })
       .finally(() => setRobotState('idle', 'جاهز للتفاعل'));
-    return;
   }
-  if (!('speechSynthesis' in window)) return;
+  if (!('speechSynthesis' in window)) return Promise.resolve(false);
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  const voice = chosenVoice();
-  if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = Companion.locale;
-  utterance.onstart = () => { setRobotState('speaking', 'Sentinel يتحدث الآن'); setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.'); };
-  utterance.onend = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); };
-  utterance.onerror = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); };
-  window.speechSynthesis.speak(utterance);
+  return new Promise(resolve => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = chosenVoice();
+    if (voice) { utterance.voice = voice; utterance.lang = voice.lang; } else utterance.lang = Companion.locale;
+    utterance.onstart = () => { setRobotState('speaking', 'Sentinel يتحدث الآن'); setVoiceStage('speaking', 'Sentinel ينطق الرد الآن — حركة الشفاه مفعّلة.'); };
+    utterance.onend = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); resolve(true); };
+    utterance.onerror = () => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('error', 'توقف عند مرحلة النطق في الجهاز؛ الرد مكتوب أمامك.'); resolve(false); };
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 function previewVoice() {
@@ -104,19 +105,29 @@ function weatherContext() {
 
 const pause = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
 
+async function postSentinel(operation, json, signal) {
+  const transport = nativeSentinelTransport();
+  const body = JSON.stringify({ 0: { json } });
+  if (isNativeAndroid() && transport?.post) {
+    const result = await transport.post({ operation, body });
+    return { status: Number(result?.status || 0), payload: JSON.parse(result?.body || 'null') };
+  }
+  const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : 'ai.sentinelReply';
+  const response = await fetch(`${CONFIG.apiBase}/api/trpc/${path}?batch=1`, {
+    method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal, body,
+  });
+  return { status: response.status, payload: await response.json().catch(() => null) };
+}
+
 async function requestSentinelReply(messages, signal) {
   let lastError = new Error('SENTINEL_REPLY_UNAVAILABLE');
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await fetch(`${CONFIG.apiBase}/api/trpc/ai.sentinelReply?batch=1`, {
-        method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal,
-        body: JSON.stringify({ 0: { json: { messages, locale: Companion.locale, context: weatherContext() } } }),
-      });
-      const payload = await response.json().catch(() => null);
+      const { status, payload } = await postSentinel('reply', { messages, locale: Companion.locale, context: weatherContext() }, signal);
       const reply = payload?.[0]?.result?.data?.json?.reply;
-      if (response.ok && typeof reply === 'string' && reply.trim()) return reply.trim();
-      lastError = new Error(payload?.[0]?.error?.json?.message || `HTTP_${response.status}`);
+      if (status >= 200 && status < 300 && typeof reply === 'string' && reply.trim()) return reply.trim();
+      lastError = new Error(payload?.[0]?.error?.json?.message || `HTTP_${status}`);
     } catch (error) {
       if (error?.name === 'AbortError') throw error;
       lastError = error instanceof Error ? error : lastError;
@@ -205,6 +216,10 @@ function nativeAudioRecorderPlugin() {
   return window.Capacitor?.Plugins?.NativeAudioRecorder || null;
 }
 
+function nativeSentinelTransport() {
+  return window.Capacitor?.Plugins?.NativeSentinelTransport || null;
+}
+
 async function refreshMicrophonePermission() {
   const plugin = nativeRecognitionPlugin(); const state = $('microphone-permission-state');
   if (!plugin || !state || typeof plugin.checkPermissions !== 'function') return;
@@ -246,13 +261,9 @@ async function openMicrophoneSettings() {
 }
 
 async function requestSentinelTranscription(recording) {
-  const response = await fetch(`${CONFIG.apiBase}/api/trpc/voice.sentinelTranscribe?batch=1`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 0: { json: { audioBase64: recording.audioBase64, mimeType: recording.mimeType || 'audio/mp4', locale: Companion.locale } } }),
-  });
-  const payload = await response.json().catch(() => null);
+  const { status, payload } = await postSentinel('transcribe', { audioBase64: recording.audioBase64, mimeType: recording.mimeType || 'audio/mp4', locale: Companion.locale });
   const text = payload?.[0]?.result?.data?.json?.text;
-  if (!response.ok || typeof text !== 'string' || !text.trim()) throw new Error(payload?.[0]?.error?.json?.message || 'TRANSCRIPTION_FAILED');
+  if (status < 200 || status >= 300 || typeof text !== 'string' || !text.trim()) throw new Error(payload?.[0]?.error?.json?.message || 'TRANSCRIPTION_FAILED');
   return text.trim();
 }
 
@@ -290,6 +301,73 @@ async function toggleRecordedConversation(plugin) {
     Companion.recording = false; Companion.listening = false; button.disabled = false; button.textContent = 'بدء الاستماع'; refreshMicrophonePermission();
     if (!Companion.controller) setRobotState('idle', 'جاهز للتفاعل');
   }
+}
+
+function updateCallUi(label, active) {
+  const button = $('call-toggle'); const status = $('call-status');
+  if (button) { button.dataset.active = String(active); button.textContent = active ? 'إنهاء الاتصال الصوتي' : 'بدء اتصال صوتي'; }
+  if (status) { status.dataset.active = String(active); status.textContent = label; }
+}
+
+async function endVoiceCall(note = 'انتهى الاتصال الصوتي. يمكنك البدء من جديد متى شئت.') {
+  Companion.callActive = false; Companion.callTurnInProgress = false;
+  if (Companion.callTimer) window.clearTimeout(Companion.callTimer);
+  Companion.callTimer = null;
+  if (Companion.recording) { try { await nativeAudioRecorderPlugin()?.stopRecording(); } catch { /* recording already stopped */ } }
+  Companion.recording = false; Companion.listening = false;
+  window.Capacitor?.Plugins?.NativeTextToSpeech?.stop?.().catch(() => {});
+  updateCallUi(note, false); setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready');
+}
+
+function scheduleCallTurn(delay = 500) {
+  if (!Companion.callActive) return;
+  Companion.callTimer = window.setTimeout(() => runVoiceCallTurn(), delay);
+}
+
+async function runVoiceCallTurn() {
+  const recorder = nativeAudioRecorderPlugin();
+  if (!Companion.callActive || !recorder || Companion.callTurnInProgress) return;
+  Companion.callTurnInProgress = true;
+  const output = $('companion-stream');
+  try {
+    await recorder.startRecording();
+    Companion.recording = true; Companion.listening = true;
+    updateCallUi('الاتصال متصل — Sentinel يستمع الآن.', true);
+    setRobotState('listening', 'أستمع إليك في الاتصال…'); setVoiceStage('recording', 'الاتصال يستمع لرسالتك الآن.');
+    await pause(4200);
+    if (!Companion.callActive) return;
+    const recording = await recorder.stopRecording();
+    Companion.recording = false; Companion.listening = false;
+    setRobotState('thinking', 'أحوّل صوتك إلى نص…'); setVoiceStage('transcription', 'الاتصال يحوّل الصوت إلى نص…');
+    const text = await requestSentinelTranscription(recording);
+    Companion.messages.push({ role: 'user', content: text });
+    output.textContent = `سمعتك تقول: ${text}\n\nSentinel يفكر…`;
+    setVoiceStage('reply', 'Sentinel يحضّر ردًا صوتيًا…');
+    const reply = await requestSentinelReply(Companion.messages.slice(-12));
+    Companion.messages.push({ role: 'assistant', content: reply });
+    output.textContent = reply;
+    updateCallUi('Sentinel يرد الآن — سيتابع الاستماع بعد انتهاء النطق.', true);
+    await speak(reply);
+  } catch (error) {
+    const reason = String(error?.message || error);
+    output.textContent = 'تعذر إكمال هذه الدورة من الاتصال. سيحاول Sentinel الاستماع من جديد.';
+    setVoiceStage('error', `توقفت دورة الاتصال: ${reason.includes('TRANSCRIPTION') ? 'تحويل الصوت إلى نص' : 'الرد أو الاتصال'}.`);
+    showToast('توقفت دورة اتصال واحدة؛ سيعاد الاستماع بعد لحظات.', 'info');
+  } finally {
+    Companion.recording = false; Companion.listening = false; Companion.callTurnInProgress = false;
+    if (Companion.callActive) scheduleCallTurn(650);
+  }
+}
+
+async function toggleVoiceCall() {
+  if (Companion.callActive) return endVoiceCall();
+  const recorder = nativeAudioRecorderPlugin();
+  if (!recorder) { updateCallUi('مسجل Android الأصلي غير جاهز؛ لا يمكن بدء الاتصال.', false); return showToast('لا يبدأ الاتصال قبل جاهزية مسجل Sentinel الأصلي.', 'error'); }
+  if (!await ensureNativeMicrophonePermission(recorder)) return;
+  Companion.callActive = true;
+  updateCallUi('جار فتح الاتصال الصوتي…', true);
+  await speak('سلام، أنا Sentinel. الاتصال الصوتي مفتوح، كنسمع ليك دابا.');
+  scheduleCallTurn(180);
 }
 
 async function toggleNativeListening(plugin) {
@@ -396,7 +474,7 @@ function init() {
   $('companion-voice').addEventListener('change', event => { Companion.voiceName = event.target.value; });
   $('voice-toggle').textContent = 'الصوت مفعّل';
   $('voice-toggle').addEventListener('click', () => { Companion.voiceEnabled = !Companion.voiceEnabled; $('voice-toggle').textContent = Companion.voiceEnabled ? 'الصوت مفعّل' : 'الصوت متوقف'; });
-  $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('sensor-toggle').addEventListener('click', toggleSensors);
+  $('preview-voice').addEventListener('click', previewVoice); $('listen-toggle').addEventListener('click', toggleListening); $('call-toggle').addEventListener('click', toggleVoiceCall); $('sensor-toggle').addEventListener('click', toggleSensors);
   $('microphone-settings')?.addEventListener('click', openMicrophoneSettings);
   $('weather-location').addEventListener('click', updateWeather); $('joke-load').addEventListener('click', loadJoke);
   $('toast-dismiss').addEventListener('click', () => { $('toast').dataset.open = 'false'; });

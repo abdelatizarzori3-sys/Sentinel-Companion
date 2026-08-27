@@ -13,6 +13,8 @@ test('Sentinel neon interface preserves the 3D robot, live state and essential c
   assert.match(html, /lip-sync/);
   assert.match(html, /voice-pipeline/);
   assert.match(html, /id="listen-toggle"/);
+  assert.match(html, /id="call-toggle"/);
+  assert.match(html, /id="call-status"/);
   assert.match(html, /id="microphone-settings"/);
   assert.match(html, /id="companion-input"/);
   assert.match(html, /prefers-reduced-motion/);
