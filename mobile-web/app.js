@@ -28,8 +28,8 @@ function nativeRecorder() {
   return window.Capacitor?.Plugins?.NativeAudioRecorder || null;
 }
 
-function nativeTts() {
-  return window.Capacitor?.Plugins?.NativeTextToSpeech || null;
+function nativeGeneratedAudio() {
+  return window.Capacitor?.Plugins?.NativeGeneratedAudio || null;
 }
 
 function nativeTransport() {
@@ -55,7 +55,7 @@ async function postSentinel(operation, json, signal) {
     const result = await transport.post({ operation, body });
     return { status: Number(result?.status || 0), payload: JSON.parse(result?.body || 'null') };
   }
-  const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : 'ai.sentinelReply';
+  const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : operation === 'speech' ? 'voice.sentinelSpeech' : 'ai.sentinelReply';
   const response = await fetch(`${CONFIG.apiBase}/api/trpc/${path}?batch=1`, {
     method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, signal, body,
@@ -89,26 +89,25 @@ async function requestReply(messages, signal) {
   throw failure;
 }
 
-async function ensureArabicVoice() {
-  const tts = nativeTts();
-  if (!tts?.checkStatus) throw new Error('TTS_UNAVAILABLE');
-  const status = await tts.checkStatus({ locale: Companion.locale });
-  if (!status?.ready || !status.requestedLanguageAvailable) throw new Error('TTS_LANGUAGE_UNAVAILABLE');
+async function requestGeminiSpeech(text, signal) {
+  const { status, payload } = await postSentinel('speech', { text: text.slice(0, 140), locale: Companion.locale }, signal);
+  const audio = payload?.[0]?.result?.data?.json;
+  if (status < 200 || status >= 300 || typeof audio?.audioBase64 !== 'string' || audio.mimeType !== 'audio/wav') throw new Error(payload?.[0]?.error?.json?.message || 'GEMINI_SPEECH_FAILED');
+  return audio;
 }
 
-function speakReply(text) {
-  const tts = nativeTts();
-  if (!tts?.speak) return Promise.reject(new Error('TTS_UNAVAILABLE'));
+async function speakReply(text, signal) {
+  const player = nativeGeneratedAudio();
+  if (!player?.play) throw new Error('AUDIO_PLAYER_UNAVAILABLE');
   setRobotState('speaking', 'Sentinel كيهضر دابا');
-  return tts.speak({ text, locale: Companion.locale }).then(result => new Promise((resolve, reject) => {
-    if (!result?.started) { reject(new Error('TTS_NOT_STARTED')); return; }
+  const audio = await requestGeminiSpeech(text, signal);
+  const result = await player.play(audio);
+  if (!result?.started) throw new Error('AUDIO_NOT_STARTED');
+  return new Promise(resolve => {
     Companion.speechResolve = resolve;
     window.clearTimeout(Companion.speechTimer);
-    Companion.speechTimer = window.setTimeout(() => {
-      Companion.speechResolve = null;
-      resolve(true);
-    }, Number(result.estimatedDurationMs) || 1800);
-  }));
+    Companion.speechTimer = window.setTimeout(() => { Companion.speechResolve = null; resolve(true); }, Number(result.durationMs) || 1800);
+  });
 }
 
 async function beginVoiceSession() {
@@ -123,13 +122,11 @@ async function beginVoiceSession() {
       setRobotState('error', 'لم يتم منح إذن الميكروفون لـ Sentinel.');
       return;
     }
-    await ensureArabicVoice();
     Companion.active = true;
     setVoiceControls(true);
     scheduleVoiceTurn(0);
   } catch (error) {
-    const missingArabic = String(error?.message || error).includes('LANGUAGE');
-    setRobotState('error', missingArabic ? 'صوت العربية غير متاح داخل Sentinel الآن.' : 'تعذر تشغيل الصوت داخل التطبيق.');
+      setRobotState('error', 'تعذر تشغيل الصوت داخل التطبيق.');
   }
 }
 
@@ -166,12 +163,11 @@ async function runVoiceTurn() {
     const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
     if (!Companion.active) return;
     Companion.messages.push({ role: 'assistant', content: reply });
-    await speakReply(reply);
+    await speakReply(reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
       const reason = String(error?.message || error);
-      const missingArabic = reason.includes('LANGUAGE');
-      setRobotState('error', missingArabic ? 'لم يبدأ صوت العربية داخل التطبيق.' : 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
+      setRobotState('error', 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
       Companion.active = false;
       setVoiceControls(false);
     }
@@ -200,7 +196,7 @@ async function stopVoiceSession() {
     try { await nativeRecorder()?.stopRecording(); } catch { /* the recorder may already be stopped */ }
   }
   Companion.recording = false;
-  nativeTts()?.stop?.().catch(() => {});
+  nativeGeneratedAudio()?.stop?.().catch(() => {});
   setVoiceControls(false);
   setRobotState('idle', 'تم الإيقاف. اضغط النقطة الخضراء للحديث');
 }

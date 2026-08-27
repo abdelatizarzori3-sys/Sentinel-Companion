@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 public class NativeSentinelTransportPlugin extends Plugin {
     private static final String BASE_URL = "https://marokecho-jrrh7cuh.manus.space";
     private static final int MAX_REQUEST_BYTES = 2_600_000;
-    private static final int MAX_RESPONSE_BYTES = 1_000_000;
+    private static final int MAX_RESPONSE_BYTES = 1_100_000;
 
     @PluginMethod
     public void post(PluginCall call) {
@@ -33,6 +33,7 @@ public class NativeSentinelTransportPlugin extends Plugin {
     private String routeFor(String operation) {
         if ("transcribe".equals(operation)) return "/api/trpc/voice.sentinelTranscribe?batch=1";
         if ("reply".equals(operation)) return "/api/trpc/ai.sentinelReply?batch=1";
+        if ("speech".equals(operation)) return "/api/trpc/voice.sentinelSpeech?batch=1";
         return null;
     }
 

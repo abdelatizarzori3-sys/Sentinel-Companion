@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeSpeechRecognitionPlugin.class);
         registerPlugin(NativeAudioRecorderPlugin.class);
         registerPlugin(NativeTextToSpeechPlugin.class);
+        registerPlugin(NativeGeneratedAudioPlugin.class);
         registerPlugin(NativeSentinelTransportPlugin.class);
         super.onCreate(savedInstanceState);
     }
