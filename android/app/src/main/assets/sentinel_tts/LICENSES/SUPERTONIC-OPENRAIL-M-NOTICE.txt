@@ -1,0 +1,5 @@
+Supertonic 3 Arabic local TTS assets are included for offline synthesis testing.
+Model weights: OpenRAIL-M. The runtime/sample code is MIT-licensed.
+Source model: https://huggingface.co/csukuangfj2/sherpa-onnx-supertonic-3-tts-int8-2026-05-11
+Upstream project: https://github.com/supertone-inc/supertonic
+This is an Arabic local voice. It is not represented as a verified Moroccan-Darija voice.

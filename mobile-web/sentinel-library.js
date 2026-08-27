@@ -34,6 +34,9 @@ window.SentinelLocalLibrary = (() => {
   const normalize = text => String(text || '').toLowerCase().replace(/[إأآ]/g, 'ا').replace(/[؟?!،,.؛:]/g, ' ').replace(/\s+/g, ' ').trim();
   const direct = text => {
     const value = normalize(text);
+    if (/for more information|thank you for watching|subscribe|اشتركوا في القناة|اشترك في القناة/i.test(value)) {
+      return { reply: 'هاد النص كيبان محتوى خارجي وماشي سؤال واضح. كتب ليا شنو بغيتي تعرف أو تحل، وغادي نجاوبك عليه مباشرة.', suggestions: ['بغيت شرح', 'بغيت خطة', 'بغيت حل لمشكل'], plan: [] };
+    }
     if (/^(مرحبا|سلام|السلام عليكم|اهلا|هلا|hi|hello)$/.test(value)) return {
       reply: 'مرحبا بك. أنا Sentinel؛ قول ليا شنو بغيتي نفهم أو نخططو ليه، وغادي نجاوبك على نفس الموضوع.',
       suggestions: ['بغيت خطة لهدف', 'شرح ليا فكرة', 'عاونّي نحل مشكل'], plan: [],

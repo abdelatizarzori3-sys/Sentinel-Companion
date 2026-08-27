@@ -2,7 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'BRAIN-BRIDGE-20260827.3';
+const BUILD_ID = 'LOCAL-ARABIC-20260827.4';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -92,6 +92,15 @@ function nativeGeneratedAudio() {
 
 function nativeTextToSpeech() {
   return window.Capacitor?.Plugins?.NativeTextToSpeech || null;
+}
+
+function nativeOfflineArabicVoice() {
+  return window.Capacitor?.Plugins?.NativeOfflineArabicVoice || null;
+}
+
+function isSafeSentinelReply(reply) {
+  if (typeof reply !== 'string' || !reply.trim()) return false;
+  return !/for more information|thank you for watching|subscribe|اشتركوا في القناة|https?:\/\/|www\./i.test(reply);
 }
 
 function nativeTransport() {
@@ -194,7 +203,7 @@ async function requestReply(messages, signal) {
       const { status, payload } = await Promise.race([replyRequest, timedOut]);
       window.clearTimeout(timeoutId);
       const answer = payload?.[0]?.result?.data?.json;
-      if (status >= 200 && status < 300 && typeof answer?.reply === 'string' && answer.reply.trim()) {
+      if (status >= 200 && status < 300 && isSafeSentinelReply(answer?.reply)) {
         const result = { ...answer, reply: answer.reply.trim(), traceId: answer.traceId || traceId };
         setKnowledgeStatus(`${knowledgeLabel(result.knowledge)} · TRACE ${result.traceId.slice(-6)}`);
         return result;
@@ -242,6 +251,21 @@ async function speakReply(text, signal) {
   });
 }
 
+async function speakLocalArabic(text) {
+  const voice = nativeOfflineArabicVoice();
+  if (!voice?.speak) throw new Error('LOCAL_ARABIC_VOICE_UNAVAILABLE');
+  setRobotState('thinking', 'Sentinel كيحضّر الصوت العربي المحلي…');
+  setKnowledgeStatus('الجواب وصل · كيتم تشغيل الصوت العربي المحلي');
+  const result = await voice.speak({ text: text.slice(0, 300) });
+  if (!result?.started) throw new Error('LOCAL_ARABIC_VOICE_NOT_STARTED');
+  setRobotState('speaking', 'Sentinel كيهضر بالصوت العربي المحلي');
+  return new Promise(resolve => {
+    Companion.speechResolve = resolve;
+    window.clearTimeout(Companion.speechTimer);
+    Companion.speechTimer = window.setTimeout(() => { Companion.speechResolve = null; resolve(true); }, Number(result.durationMs) || 1800);
+  });
+}
+
 async function speakAndroidFallback(text) {
   const tts = nativeTextToSpeech();
   if (!tts?.speak) throw new Error('ANDROID_TTS_UNAVAILABLE');
@@ -259,17 +283,25 @@ async function speakAndroidFallback(text) {
 
 async function trySpeakReply(text, signal) {
   try {
-    await speakReply(text, signal);
+    await speakLocalArabic(text);
     return true;
-  } catch (error) {
-    if (error?.name === 'AbortError') throw error;
+  } catch (localError) {
+    if (localError?.name === 'AbortError') throw localError;
     try {
-      await speakAndroidFallback(text);
+      setKnowledgeStatus('الصوت المحلي تعذر · نجرب صوت الخادم');
+      await speakReply(text, signal);
       return true;
-    } catch {
-      appendChatMessage('system', 'الجواب مكتوب، ولكن ما لقيناش صوت متاح دابا.');
-      setRobotState('idle', 'الجواب وصل. تقدر تكمل الدردشة أو تعاود تجرب الصوت.');
-      return false;
+    } catch (cloudError) {
+      if (cloudError?.name === 'AbortError') throw cloudError;
+      try {
+        await speakAndroidFallback(text);
+        return true;
+      } catch {
+        appendChatMessage('system', 'الجواب مكتوب. فشل الصوت المحلي والخادمي، ومحرك العربية غير متاح فالهاتف دابا.');
+        setKnowledgeStatus('فشل الصوت: محلي → خادم → محرك Android');
+        setRobotState('idle', 'الجواب وصل. تقدر تكمل الدردشة أو تعاود تجرب الصوت.');
+        return false;
+      }
     }
   }
 }
@@ -366,6 +398,7 @@ async function stopVoiceSession() {
   }
   Companion.recording = false;
   nativeGeneratedAudio()?.stop?.().catch(() => {});
+  nativeOfflineArabicVoice()?.stop?.().catch(() => {});
   nativeTextToSpeech()?.stop?.().catch(() => {});
   setChatBusy(false);
   setVoiceControls(false);

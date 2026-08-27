@@ -17,6 +17,7 @@ test('Sentinel local library is bundled and answers greetings without a network 
   assert.match(library.direct('كيف حالك').reply, /نظام ذكاء اصطناعي/);
   assert.match(library.direct('لا كثير').reply, /فاهمك/);
   assert.match(library.direct('كتفهم الدارجة').reply, /الدارجة المغربية/);
+  assert.match(library.direct('Thank you for watching').reply, /محتوى خارجي/);
   assert.match(library.answer('مرحبا').reply, /مرحبا/);
   assert.match(library.answer('بغيت نصلح مشكل فالتطبيق').reply, /المشكل/);
   assert.doesNotMatch(library.answer('مرحبا').reply, /قناة|اشتراك|فيديو/i);

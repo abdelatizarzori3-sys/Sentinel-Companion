@@ -1,0 +1,6 @@
+node_modules/
+releases/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/sentinel_tts/supertonic_ar/

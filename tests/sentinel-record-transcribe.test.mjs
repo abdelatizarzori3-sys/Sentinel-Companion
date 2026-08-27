@@ -9,12 +9,14 @@ const activity = readFileSync(resolve(root, 'android/app/src/main/java/com/abdel
 const recorder = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeAudioRecorderPlugin.java'), 'utf8');
 const tts = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeTextToSpeechPlugin.java'), 'utf8');
 const generatedAudio = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeGeneratedAudioPlugin.java'), 'utf8');
+const offlineArabicVoice = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeOfflineArabicVoicePlugin.java'), 'utf8');
 const transport = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeSentinelTransportPlugin.java'), 'utf8');
 
 test('Sentinel uses one native Android voice loop: record, transcribe, reply, speak, then stop', () => {
   assert.match(activity, /registerPlugin\(NativeAudioRecorderPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeTextToSpeechPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeGeneratedAudioPlugin\.class\)/);
+  assert.match(activity, /registerPlugin\(NativeOfflineArabicVoicePlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeSentinelTransportPlugin\.class\)/);
   assert.ok(activity.indexOf('registerPlugin(NativeAudioRecorderPlugin.class)') < activity.indexOf('super.onCreate(savedInstanceState)'));
   assert.match(recorder, /name = "NativeAudioRecorder"/);
@@ -29,7 +31,7 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /function isNativeAndroid/);
   assert.match(app, /function requestReply/);
-  assert.match(app, /const BUILD_ID = 'BRAIN-BRIDGE-20260827\.3'/);
+  assert.match(app, /const BUILD_ID = 'LOCAL-ARABIC-20260827\.4'/);
   assert.match(app, /function createTraceId/);
   assert.match(app, /function knowledgeLabel/);
   assert.match(app, /function displayReply/);
@@ -40,11 +42,16 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /function trySpeakReply/);
   assert.match(app, /function speakAndroidFallback/);
   assert.match(app, /function nativeTextToSpeech/);
+  assert.match(app, /function speakLocalArabic/);
+  assert.match(app, /function nativeOfflineArabicVoice/);
+  assert.match(app, /isSafeSentinelReply/);
+  assert.match(app, /الصوت المحلي تعذر/);
   assert.match(app, /الصوت البديل كينطق نفس الرد/);
-  assert.match(app, /الجواب مكتوب، ولكن ما لقيناش صوت متاح دابا/);
+  assert.match(app, /فشل الصوت المحلي والخادمي/);
   assert.match(app, /voice\.sentinelSpeech/);
   assert.match(app, /NativeGeneratedAudio/);
   assert.match(app, /NativeTextToSpeech/);
+  assert.match(app, /NativeOfflineArabicVoice/);
   assert.match(app, /SERVER_TIMEOUT/);
   assert.match(app, /Sentinel كيحضّر الصوت/);
   assert.match(app, /const REPLY_TIMEOUT_MS = 45_000/);
@@ -70,4 +77,9 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(generatedAudio, /AudioTrack/);
   assert.match(generatedAudio, /WRITE_BLOCKING/);
   assert.match(generatedAudio, /AUDIO_PLAYBACK_ERROR/);
+  assert.match(offlineArabicVoice, /name = "NativeOfflineArabicVoice"/);
+  assert.match(offlineArabicVoice, /OfflineTtsSupertonicModelConfig/);
+  assert.match(offlineArabicVoice, /supertonic_ar/);
+  assert.match(offlineArabicVoice, /setExtra\(Collections\.singletonMap\("lang", "ar"\)\)/);
+  assert.ok(app.indexOf('await speakLocalArabic(text)') < app.indexOf('await speakReply(text, signal)'));
 });
