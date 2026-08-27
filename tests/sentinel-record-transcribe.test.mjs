@@ -37,7 +37,7 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /نفس النص المنسوخ/);
   assert.match(app, /سؤالك للمكتبة/);
   assert.match(app, /ما سمعتش كلام واضح/);
-  assert.match(app, /const BUILD_ID = 'LISTEN-BRIDGE-20260827\.5'/);
+  assert.match(app, /const BUILD_ID = 'ARM64-LOCAL-20260827\.6'/);
   assert.match(app, /function createTraceId/);
   assert.match(app, /function knowledgeLabel/);
   assert.match(app, /function displayReply/);
