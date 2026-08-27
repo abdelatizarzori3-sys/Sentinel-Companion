@@ -71,8 +71,23 @@ async function postSentinel(operation, json, signal) {
   const body = JSON.stringify({ 0: { json } });
   const transport = nativeTransport();
   if (isNativeAndroid() && transport?.post) {
-    const result = await transport.post({ operation, body });
-    return { status: Number(result?.status || 0), payload: JSON.parse(result?.body || 'null') };
+    if (signal?.aborted) throw new DOMException('The request was stopped.', 'AbortError');
+    let timeoutId;
+    let removeAbort = () => {};
+    try {
+      const nativeResult = transport.post({ operation, body });
+      const stopped = new Promise((_, reject) => {
+        const onAbort = () => reject(new DOMException('The request was stopped.', 'AbortError'));
+        signal?.addEventListener('abort', onAbort, { once: true });
+        removeAbort = () => signal?.removeEventListener('abort', onAbort);
+      });
+      const timedOut = new Promise((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('SERVER_TIMEOUT')), 30000); });
+      const result = await Promise.race([nativeResult, stopped, timedOut]);
+      return { status: Number(result?.status || 0), payload: JSON.parse(result?.body || 'null') };
+    } finally {
+      window.clearTimeout(timeoutId);
+      removeAbort();
+    }
   }
   const path = operation === 'transcribe' ? 'voice.sentinelTranscribe' : operation === 'speech' ? 'voice.sentinelSpeech' : 'ai.sentinelReply';
   const response = await fetch(`${CONFIG.apiBase}/api/trpc/${path}?batch=1`, {
@@ -118,10 +133,11 @@ async function requestGeminiSpeech(text, signal) {
 async function speakReply(text, signal) {
   const player = nativeGeneratedAudio();
   if (!player?.play) throw new Error('AUDIO_PLAYER_UNAVAILABLE');
-  setRobotState('speaking', 'Sentinel كيهضر دابا');
+  setRobotState('thinking', 'Sentinel كيحضّر الصوت…');
   const audio = await requestGeminiSpeech(text, signal);
   const result = await player.play({ audioBase64: audio.audioBase64, sampleRate: audio.sampleRate || 24000 });
   if (!result?.started) throw new Error('AUDIO_NOT_STARTED');
+  setRobotState('speaking', 'Sentinel كيهضر دابا');
   return new Promise(resolve => {
     Companion.speechResolve = resolve;
     window.clearTimeout(Companion.speechTimer);
@@ -234,19 +250,21 @@ async function sendChatMessage(event) {
   appendChatMessage('user', text);
   setChatBusy(true);
   setRobotState('thinking', 'Sentinel كيفكّر فجوابك…');
-  Companion.controller = new AbortController();
+  const controller = new AbortController();
+  Companion.controller = controller;
   try {
-    const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
+    const reply = await requestReply(Companion.messages.slice(-10), controller.signal);
+    if (controller.signal.aborted) return;
     Companion.messages.push({ role: 'assistant', content: reply });
     appendChatMessage('assistant', reply);
-    await speakReply(reply, Companion.controller.signal);
+    await speakReply(reply, controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError') {
       appendChatMessage('system', 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.');
       setRobotState('error', 'تعذر إكمال الجواب.');
     }
   } finally {
-    Companion.controller = null;
+    if (Companion.controller === controller) Companion.controller = null;
     setChatBusy(false);
     if (!Companion.active) setRobotState('idle', 'تقدر تكتب أو تهضر مع Sentinel');
   }

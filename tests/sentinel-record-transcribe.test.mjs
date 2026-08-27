@@ -32,6 +32,8 @@ test('Sentinel uses one native Android voice loop: record, transcribe, reply, sp
   assert.match(app, /function requestGeminiSpeech/);
   assert.match(app, /voice\.sentinelSpeech/);
   assert.match(app, /NativeGeneratedAudio/);
+  assert.match(app, /SERVER_TIMEOUT/);
+  assert.match(app, /Sentinel كيحضّر الصوت/);
   assert.match(app, /credentials: 'omit'/);
   assert.match(app, /function nativeTransport/);
   assert.match(app, /function postSentinel/);
