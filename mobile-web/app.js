@@ -2,6 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
+const BUILD_ID = 'BRAIN-NET-20260827.1';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -17,6 +18,34 @@ function setRobotState(state = 'idle', label = 'اضغط النقطة الخضر
   const caption = $('robot-state-label');
   if (stage) stage.dataset.state = state;
   if (caption) caption.textContent = label;
+}
+
+function setKnowledgeStatus(label) {
+  const status = $('knowledge-status');
+  if (status) status.textContent = label;
+}
+
+function createTraceId() {
+  const raw = window.crypto?.randomUUID?.().replace(/-/g, '').slice(0, 12)
+    || `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `sc-${raw}`;
+}
+
+function knowledgeLabel(knowledge) {
+  if (knowledge?.fresh && knowledge?.mode === 'combined') return 'وصل الجواب · مكتبة + مصدر عام حي';
+  if (knowledge?.fresh) return 'وصل الجواب · مصدر عام حي';
+  return 'وصل الجواب · مكتبة Sentinel الداخلية';
+}
+
+function displayReply(answer) {
+  const blocks = [answer.reply];
+  if (Array.isArray(answer.suggestions) && answer.suggestions.length) {
+    blocks.push(`اقتراحات:\n${answer.suggestions.map(item => `• ${item}`).join('\n')}`);
+  }
+  if (Array.isArray(answer.plan) && answer.plan.length) {
+    blocks.push(`الخطة:\n${answer.plan.map((item, index) => `${index + 1}. ${item}`).join('\n')}`);
+  }
+  return blocks.join('\n\n');
 }
 
 function setVoiceControls(active) {
@@ -135,16 +164,22 @@ async function requestTranscription(recording, signal) {
 }
 
 async function requestReply(messages, signal) {
+  const traceId = createTraceId();
   let failure = new Error('SENTINEL_REPLY_UNAVAILABLE');
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       let timeoutId;
-      const replyRequest = postSentinel('reply', { messages, locale: Companion.locale, context: null }, signal);
+      setKnowledgeStatus(`TRACE ${traceId.slice(-6)} · وصل الطلب للخادم…`);
+      const replyRequest = postSentinel('reply', { messages, locale: Companion.locale, context: null, traceId }, signal);
       const timedOut = new Promise((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('REPLY_TIMEOUT')), REPLY_TIMEOUT_MS); });
       const { status, payload } = await Promise.race([replyRequest, timedOut]);
       window.clearTimeout(timeoutId);
-      const reply = payload?.[0]?.result?.data?.json?.reply;
-      if (status >= 200 && status < 300 && typeof reply === 'string' && reply.trim()) return reply.trim();
+      const answer = payload?.[0]?.result?.data?.json;
+      if (status >= 200 && status < 300 && typeof answer?.reply === 'string' && answer.reply.trim()) {
+        const result = { ...answer, reply: answer.reply.trim(), traceId: answer.traceId || traceId };
+        setKnowledgeStatus(`${knowledgeLabel(result.knowledge)} · TRACE ${result.traceId.slice(-6)}`);
+        return result;
+      }
       failure = new Error(payload?.[0]?.error?.json?.message || `HTTP_${status}`);
     } catch (error) {
       if (error?.name === 'AbortError') throw error;
@@ -152,6 +187,7 @@ async function requestReply(messages, signal) {
     }
     if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 350));
   }
+  failure.traceId = traceId;
   throw failure;
 }
 
@@ -241,15 +277,16 @@ async function runVoiceTurn() {
     appendChatMessage('user', text);
     setRobotState('thinking', 'Sentinel كيفكّر…');
     const waitingMessage = appendChatMessage('system', 'Sentinel كيربط بالخادم وكيوجد الجواب…');
-    const reply = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
+    const answer = await requestReply(Companion.messages.slice(-10), Companion.controller.signal);
     if (!Companion.active) return;
     removeChatMessage(waitingMessage);
-    Companion.messages.push({ role: 'assistant', content: reply });
-    appendChatMessage('assistant', reply);
-    await trySpeakReply(reply, Companion.controller.signal);
+    Companion.messages.push({ role: 'assistant', content: answer.reply });
+    appendChatMessage('assistant', displayReply(answer));
+    await trySpeakReply(answer.reply, Companion.controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError' && Companion.active) {
       appendChatMessage('system', 'تعذر وصول الجواب من الخادم. جرّب مرة أخرى.');
+      setKnowledgeStatus(`ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
       setRobotState('error', 'توقفت دورة الصوت. اضغط الأخضر للمحاولة من جديد.');
       Companion.active = false;
       setVoiceControls(false);
@@ -300,15 +337,16 @@ async function sendChatMessage(event) {
   const controller = new AbortController();
   Companion.controller = controller;
   try {
-    const reply = await requestReply(Companion.messages.slice(-10), controller.signal);
+    const answer = await requestReply(Companion.messages.slice(-10), controller.signal);
     if (controller.signal.aborted) return;
     removeChatMessage(waitingMessage);
-    Companion.messages.push({ role: 'assistant', content: reply });
-    appendChatMessage('assistant', reply);
-    await trySpeakReply(reply, controller.signal);
+    Companion.messages.push({ role: 'assistant', content: answer.reply });
+    appendChatMessage('assistant', displayReply(answer));
+    await trySpeakReply(answer.reply, controller.signal);
   } catch (error) {
     if (error?.name !== 'AbortError') {
       if (waitingMessage) waitingMessage.textContent = 'ما قدرش Sentinel يكمل الجواب دابا. عاود من بعد لحظة.';
+      setKnowledgeStatus(`ما وصلش الجواب · TRACE ${String(error?.traceId || 'غير متاح').slice(-6)}`);
       setRobotState('error', error?.message === 'REPLY_TIMEOUT' ? 'تأخر الرد. عاود من بعد لحظة.' : 'تعذر إكمال الجواب.');
     } else {
       removeChatMessage(waitingMessage);
@@ -324,6 +362,9 @@ function init() {
   setRobotState();
   setVoiceControls(false);
   setChatBusy(false);
+  const buildMarker = $('build-marker');
+  if (buildMarker) buildMarker.textContent = `BUILD ${BUILD_ID}`;
+  setKnowledgeStatus(`جاهز · BUILD ${BUILD_ID}`);
   $('voice-start')?.addEventListener('click', beginVoiceSession);
   $('voice-stop')?.addEventListener('click', stopVoiceSession);
   $('chat-form')?.addEventListener('submit', sendChatMessage);

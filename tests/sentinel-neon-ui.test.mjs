@@ -17,6 +17,8 @@ test('Sentinel presents an interactive future-museum robot with direct voice con
   assert.match(html, /gallery-breathe/);
   assert.match(html, /EXHIBIT 01/);
   assert.match(html, /id="chat-log"/);
+  assert.match(html, /id="knowledge-status"/);
+  assert.match(html, /id="build-marker"/);
   assert.match(html, /id="chat-input"/);
   assert.match(html, /id="chat-send"/);
   assert.match(html, /id="voice-start"/);
