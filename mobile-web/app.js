@@ -2,7 +2,7 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'BRAIN-NET-20260827.1';
+const BUILD_ID = 'BRAIN-BRIDGE-20260827.2';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
@@ -11,6 +11,7 @@ const Companion = {
 const TURN_DURATION_MS = 4800;
 const REPLY_TIMEOUT_MS = 45_000;
 const NATIVE_REPLY_TIMEOUT_MS = 42_000;
+const LOCAL_LIBRARY_DEADLINE_MS = 15_000;
 const $ = id => document.getElementById(id);
 
 function setRobotState(state = 'idle', label = 'اضغط النقطة الخضراء وتكلّم') {
@@ -32,6 +33,8 @@ function createTraceId() {
 }
 
 function knowledgeLabel(knowledge) {
+  if (knowledge?.local) return `جواب احتياطي · مكتبة Android الداخلية (${window.SentinelLocalLibrary?.topicCount || 0} مجال)`;
+  if (knowledge?.fallback) return 'جواب احتياطي · مكتبة Sentinel الداخلية';
   if (knowledge?.fresh && knowledge?.mode === 'combined') return 'وصل الجواب · مكتبة + مصدر عام حي';
   if (knowledge?.fresh) return 'وصل الجواب · مصدر عام حي';
   return 'وصل الجواب · مكتبة Sentinel الداخلية';
@@ -165,13 +168,25 @@ async function requestTranscription(recording, signal) {
 
 async function requestReply(messages, signal) {
   const traceId = createTraceId();
+  const latestMessage = [...messages].reverse().find(message => message.role === 'user')?.content || '';
+  const localDirectReply = window.SentinelLocalLibrary?.direct?.(latestMessage);
+  if (localDirectReply?.reply) {
+    const result = {
+      ...localDirectReply,
+      knowledge: { mode: 'internal', fresh: false, local: true, sources: ['مكتبة Android الداخلية'] },
+      traceId,
+      model: 'sentinel-local-library',
+    };
+    setKnowledgeStatus(`جواب فوري · مكتبة Android الداخلية · TRACE ${traceId.slice(-6)}`);
+    return result;
+  }
   let failure = new Error('SENTINEL_REPLY_UNAVAILABLE');
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 1; attempt += 1) {
     try {
       let timeoutId;
       setKnowledgeStatus(`TRACE ${traceId.slice(-6)} · وصل الطلب للخادم…`);
       const replyRequest = postSentinel('reply', { messages, locale: Companion.locale, context: null, traceId }, signal);
-      const timedOut = new Promise((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('REPLY_TIMEOUT')), REPLY_TIMEOUT_MS); });
+      const timedOut = new Promise((_, reject) => { timeoutId = window.setTimeout(() => reject(new Error('REPLY_TIMEOUT')), LOCAL_LIBRARY_DEADLINE_MS); });
       const { status, payload } = await Promise.race([replyRequest, timedOut]);
       window.clearTimeout(timeoutId);
       const answer = payload?.[0]?.result?.data?.json;
@@ -185,7 +200,17 @@ async function requestReply(messages, signal) {
       if (error?.name === 'AbortError') throw error;
       failure = error instanceof Error ? error : failure;
     }
-    if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 350));
+  }
+  const localReply = window.SentinelLocalLibrary?.answer?.(latestMessage);
+  if (localReply?.reply) {
+    const result = {
+      ...localReply,
+      knowledge: { mode: 'internal', fresh: false, fallback: true, local: true, sources: ['مكتبة Android الداخلية'] },
+      traceId,
+      model: 'sentinel-local-library',
+    };
+    setKnowledgeStatus(`${knowledgeLabel(result.knowledge)} · TRACE ${traceId.slice(-6)}`);
+    return result;
   }
   failure.traceId = traceId;
   throw failure;

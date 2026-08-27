@@ -23,6 +23,7 @@ test('Sentinel presents an interactive future-museum robot with direct voice con
   assert.match(html, /id="chat-send"/);
   assert.match(html, /id="voice-start"/);
   assert.match(html, /id="voice-stop"/);
+  assert.match(html, /sentinel-library\.js/);
   assert.doesNotMatch(html, /id="call-toggle"/);
   assert.doesNotMatch(html, /id="tts-settings"/);
   assert.doesNotMatch(html, /id="weather-location"/);
