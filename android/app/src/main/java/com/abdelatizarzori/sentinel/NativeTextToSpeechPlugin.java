@@ -1,7 +1,7 @@
 package com.abdelatizarzori.sentinel;
 
 import android.app.Activity;
-import android.content.Intent;
+import android.media.AudioAttributes;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
@@ -55,6 +55,12 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
     @Override
     public void onInit(int status) {
         ready = status == TextToSpeech.SUCCESS;
+        if (ready && textToSpeech != null) {
+            textToSpeech.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build());
+        }
         Activity activity = getActivity();
         if (activity == null) return;
         activity.runOnUiThread(() -> {
@@ -95,7 +101,6 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         Locale requested = Locale.forLanguageTag(tag);
         int availability = textToSpeech.isLanguageAvailable(requested);
         Locale applied = requested;
-        boolean usingFallbackLanguage = false;
         if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
             applied = new Locale("ar");
             availability = textToSpeech.isLanguageAvailable(applied);
@@ -104,9 +109,12 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
             call.reject("TTS_LANGUAGE_UNAVAILABLE");
             return;
         }
-        textToSpeech.setLanguage(applied);
+        int appliedResult = textToSpeech.setLanguage(applied);
+        if (appliedResult == TextToSpeech.LANG_MISSING_DATA || appliedResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+            call.reject("TTS_LANGUAGE_UNAVAILABLE");
+            return;
+        }
         final String appliedLanguageTag = applied.toLanguageTag();
-        final boolean fallbackLanguage = usingFallbackLanguage;
         String utteranceId = "sentinel-" + System.currentTimeMillis();
         textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override public void onStart(String id) {
@@ -114,7 +122,6 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
                 JSObject result = new JSObject();
                 result.put("started", true);
                 result.put("locale", appliedLanguageTag);
-                result.put("fallbackLanguage", fallbackLanguage);
                 result.put("estimatedDurationMs", Math.max(1100, Math.min(12000, text.length() * 82)));
                 call.resolve(result);
                 notifyListeners("speechStarted", result);
@@ -142,15 +149,4 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         call.resolve();
     }
 
-    @PluginMethod
-    public void openTtsSettings(PluginCall call) {
-        Activity activity = getActivity();
-        if (activity == null) { call.reject("TTS_SETTINGS_UNAVAILABLE"); return; }
-        try {
-            activity.startActivity(new Intent("com.android.settings.TTS_SETTINGS"));
-            call.resolve();
-        } catch (Exception error) {
-            call.reject("TTS_SETTINGS_UNAVAILABLE");
-        }
-    }
 }

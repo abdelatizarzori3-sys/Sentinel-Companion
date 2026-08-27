@@ -10,7 +10,7 @@ const recorder = readFileSync(resolve(root, 'android/app/src/main/java/com/abdel
 const tts = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeTextToSpeechPlugin.java'), 'utf8');
 const transport = readFileSync(resolve(root, 'android/app/src/main/java/com/abdelatizarzori/sentinel/NativeSentinelTransportPlugin.java'), 'utf8');
 
-test('Sentinel uses native recording, server transcription, and spoken replies on Android', () => {
+test('Sentinel uses one native Android voice loop: record, transcribe, reply, speak, then stop', () => {
   assert.match(activity, /registerPlugin\(NativeAudioRecorderPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeTextToSpeechPlugin\.class\)/);
   assert.match(activity, /registerPlugin\(NativeSentinelTransportPlugin\.class\)/);
@@ -18,30 +18,25 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(recorder, /name = "NativeAudioRecorder"/);
   assert.match(recorder, /audio\/mp4/);
   assert.match(app, /voice\.sentinelTranscribe/);
-  assert.match(app, /function toggleRecordedConversation/);
-  assert.match(app, /await sendMessage\(\)/);
-  assert.match(app, /voiceEnabled: true/);
+  assert.match(app, /function beginVoiceSession/);
+  assert.match(app, /function runVoiceTurn/);
+  assert.match(app, /function stopVoiceSession/);
+  assert.match(app, /TURN_DURATION_MS/);
+  assert.match(app, /turnDelayResolve/);
+  assert.match(app, /speechResolve/);
   assert.match(app, /NativeTextToSpeech/);
   assert.match(app, /function isNativeAndroid/);
-  assert.match(app, /مسجل Sentinel الأصلي غير جاهز/);
-  assert.match(app, /function requestSentinelReply/);
+  assert.match(app, /function requestReply/);
   assert.match(app, /credentials: 'omit'/);
-  assert.match(app, /خادم Sentinel لم يرد الآن/);
-  assert.match(app, /function nativeSentinelTransport/);
+  assert.match(app, /function nativeTransport/);
   assert.match(app, /function postSentinel/);
   assert.match(transport, /NativeSentinelTransport/);
   assert.match(transport, /TRANSPORT_OPERATION_DENIED/);
-  assert.match(app, /function toggleVoiceCall/);
-  assert.match(app, /function runVoiceCallTurn/);
-  assert.match(app, /4200/);
   assert.match(tts, /TextToSpeech/);
   assert.match(tts, /checkStatus/);
   assert.match(tts, /speechStarted/);
-  assert.match(tts, /fallbackLanguage/);
-  assert.match(tts, /openTtsSettings/);
-  assert.match(tts, /com\.android\.settings\.TTS_SETTINGS/);
-  assert.match(app, /function verifyVoiceEngine/);
-  assert.match(app, /fallbackLanguage/);
-  assert.match(app, /function openTtsSettings/);
+  assert.match(tts, /AudioAttributes\.USAGE_MEDIA/);
+  assert.doesNotMatch(tts, /openTtsSettings/);
+  assert.match(app, /function ensureArabicVoice/);
   assert.match(app, /estimatedDurationMs/);
 });
