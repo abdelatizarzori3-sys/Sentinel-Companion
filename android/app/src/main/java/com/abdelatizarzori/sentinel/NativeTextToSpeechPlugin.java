@@ -74,7 +74,18 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         JSObject result = new JSObject();
         result.put("ready", ready);
         result.put("engine", textToSpeech == null ? "" : textToSpeech.getDefaultEngine());
+        String requestedTag = call.getString("locale", "ar-MA");
+        Locale requested = Locale.forLanguageTag(requestedTag);
+        boolean requestedAvailable = textToSpeech != null && languageAvailable(requested);
+        result.put("requestedLanguageAvailable", requestedAvailable);
+        result.put("defaultLocale", textToSpeech == null || textToSpeech.getDefaultLanguage() == null ? "" : textToSpeech.getDefaultLanguage().toLanguageTag());
         call.resolve(result);
+    }
+
+    private boolean languageAvailable(Locale locale) {
+        if (textToSpeech == null || locale == null) return false;
+        int availability = textToSpeech.isLanguageAvailable(locale);
+        return availability != TextToSpeech.LANG_MISSING_DATA && availability != TextToSpeech.LANG_NOT_SUPPORTED;
     }
 
     private void startSpeaking(PluginCall call, String text) {
@@ -83,16 +94,24 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
         Locale requested = Locale.forLanguageTag(tag);
         int availability = textToSpeech.isLanguageAvailable(requested);
         Locale applied = requested;
+        boolean usingFallbackLanguage = false;
         if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
             applied = new Locale("ar");
             availability = textToSpeech.isLanguageAvailable(applied);
         }
         if (availability == TextToSpeech.LANG_MISSING_DATA || availability == TextToSpeech.LANG_NOT_SUPPORTED) {
-            call.reject("TTS_LANGUAGE_UNAVAILABLE");
-            return;
+            Locale deviceLocale = textToSpeech.getDefaultLanguage();
+            if (languageAvailable(deviceLocale)) {
+                applied = deviceLocale;
+                usingFallbackLanguage = true;
+            } else {
+                call.reject("TTS_LANGUAGE_UNAVAILABLE");
+                return;
+            }
         }
         textToSpeech.setLanguage(applied);
         final String appliedLanguageTag = applied.toLanguageTag();
+        final boolean fallbackLanguage = usingFallbackLanguage;
         String utteranceId = "sentinel-" + System.currentTimeMillis();
         textToSpeech.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override public void onStart(String id) {
@@ -100,6 +119,7 @@ public class NativeTextToSpeechPlugin extends Plugin implements TextToSpeech.OnI
                 JSObject result = new JSObject();
                 result.put("started", true);
                 result.put("locale", appliedLanguageTag);
+                result.put("fallbackLanguage", fallbackLanguage);
                 result.put("estimatedDurationMs", Math.max(1100, Math.min(12000, text.length() * 82)));
                 call.resolve(result);
                 notifyListeners("speechStarted", result);

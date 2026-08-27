@@ -78,6 +78,7 @@ function speak(text) {
     return nativeTts.speak({ text, locale: Companion.locale })
       .then(result => new Promise(resolve => {
         if (!result?.started) throw new Error('TTS_NOT_STARTED');
+        if (result.fallbackLanguage) showToast(`لا يتوفر صوت العربية؛ يستخدم Sentinel صوت الجهاز المتاح (${result.locale || 'الافتراضي'}).`, 'info');
         window.clearTimeout(Companion.speechTimer);
         Companion.speechTimer = window.setTimeout(() => { setRobotState('idle', 'جاهز للتفاعل'); setVoiceStage('ready'); resolve(true); }, Number(result.estimatedDurationMs) || 1800);
       }))
@@ -106,15 +107,17 @@ function speak(text) {
 function previewVoice() {
   if (!window.Capacitor?.Plugins?.NativeTextToSpeech && !('speechSynthesis' in window)) return showToast('النطق غير مدعوم في هذا الجهاز.', 'error');
   const line = Companion.locale === 'ar-MA' ? 'سلام، أنا Sentinel. نقدر نهضر معاك بالدارجة المغربية.' : Companion.locale === 'en-US' ? 'Hello, I am Sentinel, your voice companion.' : 'مرحبًا، أنا Sentinel، رفيقك الصوتي.';
-  const enabled = Companion.voiceEnabled; Companion.voiceEnabled = true; speak(line); Companion.voiceEnabled = enabled;
+  const enabled = Companion.voiceEnabled; Companion.voiceEnabled = true;
+  return Promise.resolve(speak(line)).finally(() => { Companion.voiceEnabled = enabled; });
 }
 
 async function verifyVoiceEngine() {
   const tts = window.Capacitor?.Plugins?.NativeTextToSpeech;
   if (!tts?.checkStatus) return previewVoice();
   try {
-    const status = await tts.checkStatus();
+    const status = await tts.checkStatus({ locale: Companion.locale });
     if (!status?.ready) throw new Error('TTS_UNAVAILABLE');
+    if (!status.requestedLanguageAvailable) showToast(`صوت العربية غير مثبت؛ سيختبر Sentinel صوت الجهاز المتاح (${status.defaultLocale || 'الافتراضي'}).`, 'info');
     setVoiceStage('speaking', 'محرك صوت Android جاهز؛ بدأ اختبار النطق.');
     await previewVoice();
   } catch {

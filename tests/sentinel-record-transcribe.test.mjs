@@ -37,6 +37,9 @@ test('Sentinel uses native recording, server transcription, and spoken replies o
   assert.match(tts, /TextToSpeech/);
   assert.match(tts, /checkStatus/);
   assert.match(tts, /speechStarted/);
+  assert.match(tts, /fallbackLanguage/);
+  assert.match(tts, /getDefaultLanguage/);
   assert.match(app, /function verifyVoiceEngine/);
+  assert.match(app, /fallbackLanguage/);
   assert.match(app, /estimatedDurationMs/);
 });
