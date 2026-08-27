@@ -9,6 +9,7 @@ const Companion = {
 
 const TURN_DURATION_MS = 4800;
 const REPLY_TIMEOUT_MS = 12000;
+const NATIVE_REPLY_TIMEOUT_MS = 6000;
 const $ = id => document.getElementById(id);
 
 function setRobotState(state = 'idle', label = 'اضغط النقطة الخضراء وتكلّم') {
@@ -104,13 +105,18 @@ async function postSentinel(operation, json, signal) {
     }
   };
   if (operation === 'reply') {
-    try {
-      const browserResult = await browserPost();
-      if (browserResult.status >= 200 && browserResult.status < 300) return browserResult;
-    } catch (error) {
-      if (error?.name === 'AbortError') throw error;
+    if (isNativeAndroid() && transport?.post) {
+      let nativeTimeoutId;
+      try {
+        const nativeTimedOut = new Promise((_, reject) => { nativeTimeoutId = window.setTimeout(() => reject(new Error('NATIVE_REPLY_TIMEOUT')), NATIVE_REPLY_TIMEOUT_MS); });
+        const nativeResult = await Promise.race([nativePost(), nativeTimedOut]);
+        if (nativeResult.status >= 200 && nativeResult.status < 300) return nativeResult;
+      } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+      } finally {
+        window.clearTimeout(nativeTimeoutId);
+      }
     }
-    if (isNativeAndroid() && transport?.post) return nativePost();
     return browserPost();
   }
   if (isNativeAndroid() && transport?.post) return nativePost();
