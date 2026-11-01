@@ -2,10 +2,11 @@ const CONFIG = {
   apiBase: (window.SENTINEL_API_BASE || localStorage.getItem('sentinel_api_base') || 'https://marokecho-jrrh7cuh.manus.space').replace(/\/$/, ''),
 };
 
-const BUILD_ID = 'QUESTION-GUARD-20260827.9';
+const BUILD_ID = 'PERSONAL-LIBRARY-PRO-20261031.1';
 const Companion = {
   locale: 'ar-MA', messages: [], controller: null, active: false, recording: false,
   turnTimer: null, turnDelayResolve: null, speechTimer: null, speechResolve: null, turnInProgress: false,
+  personalLibrary: null, entitlement: window.SentinelProEntitlement || null,
 };
 
 const TURN_DURATION_MS = 6500;
@@ -80,6 +81,164 @@ function setChatBusy(busy) {
   if (input) input.disabled = busy;
   if (send) send.disabled = busy;
   if (abort) abort.disabled = !busy;
+}
+
+function libraryErrorMessage(code) {
+  const messages = {
+    INVALID_JSON: 'ملف JSON غير صالح.', INVALID_BACKUP: 'بنية النسخة الاحتياطية غير صالحة.',
+    UNEXPECTED_BACKUP_FIELD: 'الملف يحتوي حقولًا غير مسموحة.', UNEXPECTED_ENTRY_FIELD: 'أحد السيناريوهات يحتوي حقولًا غير مسموحة.',
+    INVALID_QUESTION: 'اكتب سؤالًا عربيًا من 3 إلى 280 حرفًا، من دون روابط أو أسرار.',
+    INVALID_ANSWER: 'اكتب جوابًا عربيًا من 3 إلى 1600 حرف، من دون روابط أو أسرار.',
+    INVALID_ID: 'معرّف السيناريو غير صالح.', INVALID_TIMESTAMP: 'تاريخ أحد السيناريوهات غير صالح.',
+    INVALID_TIMESTAMP_ORDER: 'تاريخ تحديث السيناريو يسبق تاريخ إنشائه.', DUPLICATE_ENTRY: 'لا يمكن تكرار السؤال نفسه.',
+    TOO_MANY_ENTRIES: 'الحد الأقصى هو 100 سيناريو.', BACKUP_TOO_LARGE: 'ملف المكتبة أكبر من الحد المسموح.',
+    PERSIST_FAILED: 'تعذر حفظ المكتبة على هذا الجهاز.', NOT_FOUND: 'لم يعد السيناريو موجودًا.',
+  };
+  return messages[code] || 'تعذر إتمام العملية بأمان.';
+}
+
+function entitlementMessage(state) {
+  if (state?.active) return 'المكتبة الشخصية مفعّلة لاشتراكك الموثق.';
+  if (state?.status === 'checking') return 'نتحقق من اشتراكك الموثق…';
+  if (state?.status === 'inactive') return 'اشتراك برو غير نشط أو منتهٍ؛ تبقى المكتبة الشخصية مقفلة.';
+  return 'ميزة برو مقفلة: يلزم إعداد شراء داخل التطبيق وربط استحقاق خادمي موثق قبل إتاحتها.';
+}
+
+function setPersonalLibraryNotice(message, isError = false) {
+  const notice = $('personal-library-notice');
+  if (!notice) return;
+  notice.textContent = message;
+  notice.dataset.error = String(isError);
+}
+
+function updatePersonalLibraryGate(state = Companion.entitlement?.getState?.()) {
+  const enabled = Boolean(state?.active && Companion.personalLibrary);
+  const body = $('personal-library-body');
+  const gate = $('personal-library-gate');
+  const stateLabel = $('personal-library-state');
+  if (body) body.hidden = !enabled;
+  if (gate) gate.hidden = enabled;
+  if (stateLabel) stateLabel.textContent = enabled ? 'برو مفعّل' : 'برو مقفل';
+  document.querySelectorAll?.('[data-personal-library-control]').forEach(control => { control.disabled = !enabled; });
+  setPersonalLibraryNotice(entitlementMessage(state), !enabled);
+}
+
+function renderPersonalLibrary() {
+  const list = $('personal-library-list');
+  const count = $('personal-library-count');
+  if (!list || !Companion.personalLibrary) return;
+  const entries = Companion.personalLibrary.list();
+  list.replaceChildren();
+  if (count) count.textContent = `${entries.length}/100`;
+  if (!entries.length) {
+    const empty = document.createElement('p');
+    empty.className = 'personal-library-empty';
+    empty.textContent = 'ما كاين حتى سيناريو بعد. أضف سؤالًا وجوابه ليُجاب محليًا عند التطابق.';
+    list.appendChild(empty);
+    return;
+  }
+  entries.forEach(entry => {
+    const item = document.createElement('article');
+    item.className = 'personal-library-entry';
+    const question = document.createElement('h4');
+    question.textContent = entry.question;
+    const answer = document.createElement('p');
+    answer.textContent = entry.answer;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'personal-library-delete';
+    remove.textContent = 'حذف';
+    remove.addEventListener('click', () => deletePersonalLibraryEntry(entry.id, entry.question));
+    item.append(question, answer, remove);
+    list.appendChild(item);
+  });
+}
+
+async function requirePersonalLibraryEntitlement() {
+  if (!Companion.entitlement?.refresh) {
+    updatePersonalLibraryGate();
+    return false;
+  }
+  const state = await Companion.entitlement.refresh();
+  updatePersonalLibraryGate(state);
+  return Boolean(state.active && Companion.personalLibrary);
+}
+
+function closePersonalLibrary() {
+  const panel = $('personal-library-panel');
+  if (panel) panel.hidden = true;
+  $('personal-library-open')?.focus();
+}
+
+async function openPersonalLibrary() {
+  const panel = $('personal-library-panel');
+  if (!panel) return;
+  panel.hidden = false;
+  updatePersonalLibraryGate({ status: 'checking', active: false });
+  const allowed = await requirePersonalLibraryEntitlement();
+  if (allowed) {
+    const loadIssue = Companion.personalLibrary.getLoadIssue?.();
+    setPersonalLibraryNotice(loadIssue ? `تعذر قراءة نسخة سابقة (${libraryErrorMessage(loadIssue)}). ابدأ بمكتبة جديدة أو استورد ملفًا صالحًا.` : entitlementMessage(Companion.entitlement.getState()), Boolean(loadIssue));
+    renderPersonalLibrary();
+  }
+  $('personal-library-close')?.focus();
+}
+
+async function addPersonalLibraryEntry(event) {
+  event.preventDefault();
+  if (!await requirePersonalLibraryEntitlement()) return;
+  const question = $('personal-library-question')?.value || '';
+  const answer = $('personal-library-answer')?.value || '';
+  const result = Companion.personalLibrary.add(question, answer);
+  if (!result.ok) {
+    setPersonalLibraryNotice(libraryErrorMessage(result.code), true);
+    return;
+  }
+  $('personal-library-question').value = '';
+  $('personal-library-answer').value = '';
+  setPersonalLibraryNotice('تم حفظ السيناريو محليًا على هذا الجهاز.');
+  renderPersonalLibrary();
+}
+
+async function deletePersonalLibraryEntry(id, question) {
+  if (!await requirePersonalLibraryEntitlement()) return;
+  if (!window.confirm(`حذف السيناريو «${question}»؟`)) return;
+  const result = Companion.personalLibrary.remove(id);
+  setPersonalLibraryNotice(result.ok ? 'تم حذف السيناريو من هذا الجهاز.' : libraryErrorMessage(result.code), !result.ok);
+  if (result.ok) renderPersonalLibrary();
+}
+
+async function importPersonalLibrary(event) {
+  const file = event.target?.files?.[0];
+  event.target.value = '';
+  if (!file || !await requirePersonalLibraryEntitlement()) return;
+  if (file.size > 160_000) {
+    setPersonalLibraryNotice(libraryErrorMessage('BACKUP_TOO_LARGE'), true);
+    return;
+  }
+  try {
+    const result = Companion.personalLibrary.importJson(await file.text());
+    setPersonalLibraryNotice(result.ok ? `تم استيراد ${result.count} سيناريو محليًا.` : libraryErrorMessage(result.code), !result.ok);
+    if (result.ok) renderPersonalLibrary();
+  } catch {
+    setPersonalLibraryNotice('تعذر قراءة ملف الاستيراد.', true);
+  }
+}
+
+async function exportPersonalLibrary() {
+  if (!await requirePersonalLibraryEntitlement()) return;
+  const result = Companion.personalLibrary.exportJson();
+  if (!result.ok) {
+    setPersonalLibraryNotice(libraryErrorMessage(result.code), true);
+    return;
+  }
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(new Blob([result.text], { type: 'application/json;charset=utf-8' }));
+  link.href = url;
+  link.download = 'sentinel-personal-library.json';
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  setPersonalLibraryNotice('تم تجهيز ملف JSON المُتحقق للتصدير.');
 }
 
 function nativeRecorder() {
@@ -199,6 +358,16 @@ async function requestTranscription(recording, signal) {
 async function requestReply(messages, signal) {
   const traceId = createTraceId();
   const latestMessage = [...messages].reverse().find(message => message.role === 'user')?.content || '';
+  const personalReply = Companion.entitlement?.getState?.().active ? Companion.personalLibrary?.match(latestMessage) : null;
+  if (personalReply?.answer) {
+    const result = {
+      reply: personalReply.answer, suggestions: [], plan: [], personalMatch: true,
+      knowledge: { mode: 'personal-local', fresh: false, local: true, sources: ['مكتبتك الشخصية المحلية'] },
+      traceId, model: 'sentinel-personal-library',
+    };
+    setKnowledgeStatus(`جواب من مكتبتك الشخصية · محلي فقط · TRACE ${traceId.slice(-6)}`);
+    return result;
+  }
   const localDirectReply = window.SentinelLocalLibrary?.direct?.(latestMessage);
   if (localDirectReply?.reply) {
     const result = {
@@ -472,6 +641,11 @@ function init() {
   setRobotState();
   setVoiceControls(false);
   setChatBusy(false);
+  try {
+    Companion.personalLibrary = window.SentinelPersonalLibrary?.createStore?.() || null;
+  } catch {
+    Companion.personalLibrary = null;
+  }
   const buildMarker = $('build-marker');
   if (buildMarker) buildMarker.textContent = `BUILD ${BUILD_ID}`;
   setKnowledgeStatus(`جاهز · BUILD ${BUILD_ID}`);
@@ -479,6 +653,14 @@ function init() {
   $('voice-stop')?.addEventListener('click', stopVoiceSession);
   $('chat-form')?.addEventListener('submit', sendChatMessage);
   $('chat-abort')?.addEventListener('click', stopVoiceSession);
+  $('personal-library-open')?.addEventListener('click', openPersonalLibrary);
+  $('personal-library-close')?.addEventListener('click', closePersonalLibrary);
+  $('personal-library-form')?.addEventListener('submit', addPersonalLibraryEntry);
+  $('personal-library-import')?.addEventListener('change', importPersonalLibrary);
+  $('personal-library-export')?.addEventListener('click', exportPersonalLibrary);
+  Companion.entitlement?.subscribe?.(updatePersonalLibraryGate);
+  updatePersonalLibraryGate();
+  Companion.entitlement?.refresh?.().then(updatePersonalLibraryGate).catch(() => updatePersonalLibraryGate());
 }
 
 document.addEventListener('DOMContentLoaded', init);

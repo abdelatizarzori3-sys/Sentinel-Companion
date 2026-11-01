@@ -77,6 +77,7 @@ async function route(req, res) {
   if (req.method === 'OPTIONS') return json(res, 204, {});
   if (!req.url.startsWith('/api/') && await serveFrontend(req, res)) return;
   if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true, llmConfigured: Boolean(llmBase && llmKey), model });
+  if (req.method === 'GET' && req.url === '/api/entitlements/me') return json(res, 503, { error: 'Subscription entitlement service is not configured', code: 'ENTITLEMENT_NOT_CONFIGURED' });
   if (req.method !== 'POST' || !['/api/analyze', '/api/translate', '/api/chat/stream'].includes(req.url)) return json(res, 404, { error: 'Not found' });
   try {
     const body = await readBody(req);
