@@ -33,7 +33,12 @@
       @keyframes orbit { 50% { transform: scale(1.07); opacity: .35; } }
       @media (prefers-reduced-motion: reduce) { .pulse-orbit::before, .pulse-orbit::after { animation: none; } }
     </style>
-  </head>
+
+  <style id="future-companion-interface">
+/* Future interface: personal companion prism */
+body{background:radial-gradient(circle at 85% 4%,rgba(161,133,255,.22),transparent 25rem),radial-gradient(circle at 7% 72%,rgba(77,225,255,.14),transparent 31rem),#080a19}.glass{border-color:rgba(184,164,255,.22);background:linear-gradient(145deg,rgba(27,23,63,.88),rgba(8,15,34,.9));box-shadow:0 1.2rem 3.5rem rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.07)}.brand-mark{background:linear-gradient(145deg,#c1a5ff,#55dff5);box-shadow:0 .55rem 1.4rem rgba(161,133,255,.28)}.pulse-orbit{background:radial-gradient(circle,#f4eaff 0 4%,#c1a5ff 5% 11%,#1b2350 12% 48%,transparent 49%);box-shadow:0 0 0 1px rgba(193,165,255,.5),0 0 3rem rgba(161,133,255,.3)}.pulse-orbit::before,.pulse-orbit::after{border-color:rgba(193,165,255,.42)}.action{background:linear-gradient(135deg,#c1a5ff,#55dff5);color:#10112c}.control:focus-visible,#companion-input:focus-visible{outline-color:#ded4ff}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
   <body>
     <div class="shell">
       <header class="flex items-center justify-between gap-3 py-3" aria-label="رأس تطبيق Sentinel">

@@ -24,6 +24,10 @@ test('Sentinel presents an interactive future-museum robot with direct voice con
   assert.match(html, /id="voice-start"/);
   assert.match(html, /id="voice-stop"/);
   assert.match(html, /sentinel-library\.js/);
+  assert.match(html, /id="personal-library-open"/);
+  assert.match(html, /id="personal-library-panel"/);
+  assert.match(html, /sentinel-personal-library\.js/);
+  assert.match(html, /sentinel-pro-entitlement\.js/);
   assert.doesNotMatch(html, /id="call-toggle"/);
   assert.doesNotMatch(html, /id="tts-settings"/);
   assert.doesNotMatch(html, /id="weather-location"/);
@@ -34,6 +38,9 @@ test('Sentinel presents an interactive future-museum robot with direct voice con
   assert.match(script, /function stopVoiceSession/);
   assert.match(script, /function sendChatMessage/);
   assert.match(script, /function appendChatMessage/);
+  assert.match(script, /function openPersonalLibrary/);
+  assert.match(script, /function requirePersonalLibraryEntitlement/);
+  assert.match(script, /sentinel-personal-library/);
   assert.match(script, /setRobotState\('listening'/);
   assert.match(script, /setRobotState\('thinking'/);
   assert.match(script, /setRobotState\('speaking'/);
